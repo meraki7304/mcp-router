@@ -56,9 +56,6 @@ export class DatabaseContext {
   }
 }
 
-/**
- * データベースコンテキストのシングルトンインスタンスを取得
- */
 export function getDatabaseContext(): DatabaseContext {
   return DatabaseContext.getInstance();
 }

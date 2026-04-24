@@ -263,17 +263,13 @@ export default function WorkflowEditor({
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       setSelectedNode(node as WorkflowNode);
-      // ノードのラベルを設定
       const label = node.data?.label;
       setNodeLabel(typeof label === "string" ? label : "");
-      // Hookノードの場合、hookオブジェクトから設定を読み込む
       if (node.type === "hook") {
         const hook = node.data?.hook as WorkflowHook | undefined;
         if (hook && typeof hook === "object") {
           if (hook.hookModuleId) {
-            // HookModuleを参照している場合
             setSelectedModuleId(hook.hookModuleId);
-            // モジュールからスクリプトを取得
             platformAPI.workflows.hooks
               .get(hook.hookModuleId)
               .then((module) => {
@@ -282,7 +278,6 @@ export default function WorkflowEditor({
                 }
               });
           } else if (hook.script) {
-            // Inline Scriptの場合
             setSelectedModuleId("custom");
             setNodeScript(hook.script);
           } else {
@@ -414,7 +409,6 @@ export default function WorkflowEditor({
 
       {selectedNode && selectedNode.type === "hook" && (
         <div className="p-4 border-t bg-gray-50 dark:bg-gray-900">
-          {/* ヘッダーとボタン */}
           <div className="flex justify-between items-center mb-4">
             <Input
               value={nodeLabel}
@@ -427,7 +421,6 @@ export default function WorkflowEditor({
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  // 元の値に戻す
                   if (selectedNode) {
                     const label = selectedNode.data?.label;
                     setNodeLabel(typeof label === "string" ? label : "");
@@ -443,7 +436,6 @@ export default function WorkflowEditor({
                       setNodeScript(typeof script === "string" ? script : "");
                     }
                   }
-                  // 編集領域を閉じる
                   setSelectedNode(null);
                   setSelectedModuleId("");
                 }}
@@ -455,13 +447,11 @@ export default function WorkflowEditor({
                 size="sm"
                 variant="default"
                 onClick={() => {
-                  // 現在の編集内容を適用
                   const updatedNodes = nodes.map((node: WorkflowNode) => {
                     if (node.id === selectedNode.id) {
                       let updatedHook = node.data?.hook;
                       if (updatedHook) {
                         if (selectedModuleId === "custom") {
-                          // Inline Scriptの場合
                           updatedHook = {
                             ...updatedHook,
                             hookModuleId: undefined,
@@ -471,7 +461,6 @@ export default function WorkflowEditor({
                           selectedModuleId &&
                           selectedModuleId !== "manage"
                         ) {
-                          // HookModuleを参照する場合
                           updatedHook = {
                             ...updatedHook,
                             hookModuleId: selectedModuleId,
@@ -492,7 +481,6 @@ export default function WorkflowEditor({
                     return node;
                   });
                   setNodes(updatedNodes);
-                  // 編集領域を閉じる
                   setSelectedNode(null);
                   setSelectedModuleId("");
                 }}
@@ -504,7 +492,6 @@ export default function WorkflowEditor({
           </div>
 
           <div className="space-y-4">
-            {/* モジュール選択 */}
             <div>
               <Label htmlFor="hook-module" className="text-sm font-medium">
                 Hook Module
@@ -521,7 +508,6 @@ export default function WorkflowEditor({
                         setNodeLabel(module.name);
                       }
                     } else if (value === "custom") {
-                      // Inline Scriptモードに切り替え
                       setNodeScript("");
                     } else if (value === "manage") {
                       setModuleManagerOpen(true);
@@ -552,7 +538,6 @@ export default function WorkflowEditor({
               </div>
             </div>
 
-            {/* カスタムスクリプト編集（カスタムが選択された場合のみ表示） */}
             {selectedModuleId === "custom" && (
               <div>
                 <Label htmlFor="hook-script" className="text-sm font-medium">

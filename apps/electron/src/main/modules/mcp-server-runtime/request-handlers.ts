@@ -735,7 +735,7 @@ export class RequestHandlers extends RequestHandlerBase {
           },
           undefined,
           {
-            timeout: 60 * 60 * 1000, // 60分
+            timeout: 60 * 60 * 1000, // 60 分钟
             resetTimeoutOnProgress: true,
           },
         );

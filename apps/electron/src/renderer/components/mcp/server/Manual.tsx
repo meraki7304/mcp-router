@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePlatformAPI } from "@/renderer/platform-api";
 import { Button } from "@mcp_router/ui";
@@ -11,7 +11,6 @@ import {
   ExternalLink,
   HardDrive,
   Globe,
-  FileCode2,
   Loader2,
 } from "lucide-react";
 import {
@@ -113,11 +112,6 @@ const Manual: React.FC = () => {
   }>({});
   const [autoStart, setAutoStart] = useState(false);
 
-  // DXT Import State
-  const [dxtFile, setDxtFile] = useState<File | null>(null);
-  const [isLoadingDxt, setIsLoadingDxt] = useState(false);
-  const [dxtError, setDxtError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addEnvVar = () => {
     setEnvVars([...envVars, { key: "", value: "" }]);
@@ -284,44 +278,6 @@ const Manual: React.FC = () => {
     setSelectedProjectId(null);
   };
 
-  const handleDxtFileSelect = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.name.endsWith(".dxt")) {
-      setDxtError(t("manual.dxt.errorInvalidFile"));
-      return;
-    }
-    setDxtFile(file);
-    setDxtError(null);
-  };
-
-  const handleDxtImport = async () => {
-    if (!dxtFile) return;
-    setIsLoadingDxt(true);
-    setDxtError(null);
-    try {
-      const arrayBuffer = await dxtFile.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      await platformAPI.servers.create({ type: "dxt", dxtFile: uint8Array });
-      toast.success(t("manual.dxt.successImport", { name: dxtFile.name }));
-      await refreshServers();
-      setDxtFile(null);
-      setDxtError(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : t("manual.dxt.errorFailedImport");
-      toast.error(errorMessage);
-      setDxtError(errorMessage);
-    } finally {
-      setIsLoadingDxt(false);
-    }
-  };
-
   const validateForm = (): boolean => {
     const errors: { serverName?: string; command?: string; args?: string } = {};
     if (!serverName.trim()) errors.serverName = t("manual.errors.nameRequired");
@@ -418,14 +374,6 @@ const Manual: React.FC = () => {
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="dxt"
-            className="h-10 rounded-none border-b border-transparent bg-transparent px-1 text-sm font-medium data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
-          >
-            <span className="inline-flex items-center gap-2">
-              <FileCode2 className="h-4 w-4" /> {t("manual.importFromDxt")}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
             value="local"
             className="h-10 rounded-none border-b border-transparent bg-transparent px-1 text-sm font-medium data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
           >
@@ -519,88 +467,6 @@ const Manual: React.FC = () => {
                 </Button>
               </>
             )}
-          </div>
-        </TabsContent>
-
-        {/* DXT Import */}
-        <TabsContent value="dxt" className="space-y-4">
-          <TabIntro>{t("manual.dxt.description")}</TabIntro>
-
-          <div className="space-y-4">
-            <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".dxt"
-                onChange={handleDxtFileSelect}
-                className="hidden"
-              />
-              {dxtFile ? (
-                <div className="space-y-4">
-                  <FileCode2 className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">{dxtFile.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(dxtFile.size / 1024).toFixed(2)} KB
-                    </p>
-                  </div>
-                  <div className="flex gap-2 justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setDxtFile(null);
-                        setDxtError(null);
-                        if (fileInputRef.current)
-                          fileInputRef.current.value = "";
-                      }}
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      {t("manual.dxt.remove")}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className="cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-sm text-muted-foreground">
-                    {t("manual.dxt.clickToUpload")}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("manual.dxt.dxtFilesOnly")}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {dxtError && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>{t("manual.dxt.error")}</AlertTitle>
-                <AlertDescription>{dxtError}</AlertDescription>
-              </Alert>
-            )}
-
-            <Button
-              onClick={handleDxtImport}
-              disabled={isLoadingDxt || !dxtFile}
-              className="flex items-center justify-center gap-2 w-full"
-            >
-              {isLoadingDxt ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t("common.loading")}
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4" />
-                  {t("manual.dxt.importServers")}
-                </>
-              )}
-            </Button>
           </div>
         </TabsContent>
 

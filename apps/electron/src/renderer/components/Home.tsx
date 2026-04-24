@@ -30,8 +30,6 @@ import { hasUnsetRequiredParams } from "@/renderer/utils/server-validation-utils
 import { toast } from "sonner";
 import {
   useServerStore,
-  useWorkspaceStore,
-  useAuthStore,
   useViewPreferencesStore,
   useProjectStore,
   UNASSIGNED_PROJECT_ID,
@@ -53,7 +51,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@mcp_router/ui";
-import { LoginScreen } from "@/renderer/components/auth/LoginScreen";
 import ServerDetailsAdvancedSheet from "@/renderer/components/mcp/server/server-details/ServerDetailsAdvancedSheet";
 import { useServerEditingStore } from "@/renderer/stores";
 import ProjectSettingsModal from "@/renderer/components/mcp/server/ProjectSettingsModal";
@@ -107,9 +104,6 @@ const Home: React.FC = () => {
     updateServerToolPermissions,
   } = useServerStore();
 
-  // Get workspace and auth state
-  const { currentWorkspace } = useWorkspaceStore();
-  const { isAuthenticated, login } = useAuthStore();
   const { serverViewMode, setServerViewMode } = useViewPreferencesStore();
   const {
     projects,
@@ -187,10 +181,9 @@ const Home: React.FC = () => {
     }
   };
 
-  // Load projects on workspace change
   React.useEffect(() => {
     listProjects().catch((e) => console.error("Failed to load projects", e));
-  }, [listProjects, currentWorkspace?.id]);
+  }, [listProjects]);
 
   // Handle opening error modal
   const openErrorModal = (server: MCPServer, e: React.MouseEvent) => {
@@ -256,11 +249,6 @@ const Home: React.FC = () => {
     },
     [updateProjectInStore],
   );
-
-  // Show login screen for remote workspaces if not authenticated
-  if (currentWorkspace?.type === "remote" && !isAuthenticated) {
-    return <LoginScreen onLogin={login} />;
-  }
 
   return (
     <div className="flex flex-col h-full">
@@ -555,13 +543,11 @@ const Home: React.FC = () => {
                                           try {
                                             if (checked) {
                                               await startServer(server.id);
-                                              // サーバーが起動完了した場合のメッセージ
                                               toast.success(
                                                 t("serverList.serverStarted"),
                                               );
                                             } else {
                                               await stopServer(server.id);
-                                              // サーバーが停止完了した場合のメッセージ
                                               toast.success(
                                                 t("serverList.serverStopped"),
                                               );
@@ -1033,13 +1019,13 @@ const Home: React.FC = () => {
                 }
               });
 
-              // inputParamsのdefault値をenvに反映
+              // 将inputParams的default值反映到env
               const finalInputParams =
                 updatedInputParams || advancedSettingsServer.inputParams;
               if (finalInputParams) {
                 Object.entries(finalInputParams).forEach(
                   ([key, param]: [string, any]) => {
-                    // envに値が設定されていない場合、default値を設定
+                    // 若env中未设置值，则使用default值
                     if (
                       !envObj[key] &&
                       param.default !== undefined &&

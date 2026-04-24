@@ -1,93 +1,45 @@
 import type { Theme } from "./ui";
-import type { CloudSyncState } from "./cloud-sync";
-import type { SubscriptionStatus } from "./auth";
 
 /**
- * アプリケーション設定のインターフェース
+ * 应用设置接口
  */
 export interface AppSettings {
   /**
-   * ユーザーID
+   * 匿名用户 ID（本地随机生成，仅用于区分本地数据）
    */
   userId?: string;
 
   /**
-   * 認証トークン
-   */
-  authToken?: string;
-
-  /**
-   * ログイン日時
-   */
-  loggedInAt?: string;
-
-  /**
-   * サブスクリプションステータス
-   */
-  subscriptionStatus?: SubscriptionStatus | null;
-
-  /**
-   * プラン名
-   */
-  planName?: string | null;
-
-  /**
-   * パッケージマネージャーオーバーレイの表示回数
+   * 包管理器安装提示层的显示次数
    */
   packageManagerOverlayDisplayCount?: number;
 
   /**
-   * 外部アプリケーションからのMCP設定の読み込みを有効化するか
-   * デフォルト: true
-   */
-  loadExternalMCPConfigs?: boolean;
-
-  /**
-   * アナリティクスの送信を有効化するか
-   * デフォルト: true
-   */
-  analyticsEnabled?: boolean;
-
-  /**
-   * 自動アップデートを有効化するか
-   * デフォルト: true
+   * 是否启用自动更新
+   * 默认：true
    */
   autoUpdateEnabled?: boolean;
 
   /**
-   * OS起動時にアプリのメインウィンドウを表示するか
-   * デフォルト: true
+   * 系统启动时是否显示主窗口
+   * 默认：true
    */
   showWindowOnStartup?: boolean;
 
   /**
-   * アプリケーションのテーマ設定
-   * デフォルト: "system"
+   * 应用主题
+   * 默认："system"
    */
   theme?: Theme;
-
-  /**
-   * Cloud Syncの状態
-   */
-  cloudSync?: CloudSyncState;
 }
 
 /**
- * デフォルトのアプリケーション設定
+ * 默认应用设置
  */
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   userId: "",
-  authToken: "",
-  loggedInAt: "",
-  subscriptionStatus: null,
-  planName: null,
   packageManagerOverlayDisplayCount: 0,
-  loadExternalMCPConfigs: true,
-  analyticsEnabled: true,
   autoUpdateEnabled: true,
   showWindowOnStartup: true,
   theme: "system",
-  cloudSync: {
-    enabled: false,
-  },
 };

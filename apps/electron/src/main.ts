@@ -8,7 +8,6 @@ import started from "electron-squirrel-startup";
 import { updateElectronApp } from "update-electron-app";
 import { setApplicationMenu } from "@/main/ui/menu";
 import { createTray, updateTrayContextMenu } from "@/main/ui/tray";
-import { importExistingServerConfigurations } from "@/main/modules/mcp-apps-manager/mcp-config-importer";
 import { getPlatformAPIManager } from "@/main/modules/workspace/platform-api-manager";
 import { getWorkspaceService } from "@/main/modules/workspace/workspace.service";
 import { getSharedConfigManager } from "@/main/infrastructure/shared-config-manager";
@@ -16,13 +15,11 @@ import { setupIpcHandlers } from "./main/infrastructure/ipc";
 import { resolveAutoUpdateConfig } from "./main/modules/system/app-updator";
 import { getIsAutoUpdateInProgress } from "./main/modules/system/system-handler";
 import { initializeEnvironment, isDevelopment } from "@/main/utils/environment";
-import { getCloudSyncService } from "@/main/modules/cloud-sync/cloud-sync.service";
 import {
   applyLoginItemSettings,
   applyThemeSettings,
   getSettingsService,
 } from "@/main/modules/settings/settings.service";
-import { getSkillService } from "@/main/modules/skills/skills.service";
 
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -55,7 +52,6 @@ app.on("second-instance", (_event, commandLine) => {
   }
 });
 
-// Squirrelの初回起動時の処理
 if (started) app.quit();
 
 // Global references
@@ -65,10 +61,7 @@ let isQuitting = false;
 // Timer for updating tray context menu
 let trayUpdateTimer: NodeJS.Timeout | null = null;
 
-export const BASE_URL = "https://mcp-router.net/";
-export const API_BASE_URL = `${BASE_URL}api`;
-
-// Configure auto update (guarded to avoid crash on unsigned macOS builds)
+// 配置自动更新（规避未签名 macOS 构建崩溃）
 const { enabled: enableAutoUpdate, options: autoUpdateOptions } =
   resolveAutoUpdateConfig();
 
@@ -80,7 +73,6 @@ if (enableAutoUpdate && autoUpdateOptions) {
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string | undefined;
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 
-// グローバル変数の宣言（初期化は後で行う）
 let serverManager: MCPServerManager;
 let aggregatorServer: AggregatorServer;
 let mcpHttpServer: MCPHttpServer;
@@ -224,108 +216,74 @@ function setupTrayUpdateTimer(
   }, intervalMs);
 }
 
-/**
- * データベースの初期化を行う
- */
 async function initDatabase(): Promise<void> {
   try {
-    // 共通設定マネージャーを初期化（既存データからのマイグレーションを含む）
+    // 初始化共享配置管理器（含从现有数据迁移）
     await getSharedConfigManager().initialize();
 
-    // ワークスペースサービスは自動的にメタデータベースを初期化する
     const workspaceService = getWorkspaceService();
 
-    // アクティブなワークスペースを取得
     const activeWorkspace = await workspaceService.getActiveWorkspace();
     if (!activeWorkspace) {
-      // デフォルトワークスペースがない場合は作成
       await workspaceService.switchWorkspace("local-default");
     }
 
-    // ワークスペース固有のデータベースのマイグレーションは
-    // PlatformAPIManagerが初期化時に実行する
+    // 工作区专用数据库的迁移由 PlatformAPIManager 在初始化时执行
   } catch (error) {
     console.error(
-      "データベースマイグレーション中にエラーが発生しました:",
+      "数据库迁移过程中发生错误:",
       error,
     );
   }
 }
 
-/**
- * MCP関連サービスの初期化を行う
- */
 async function initMCPServices(): Promise<void> {
-  // Platform APIマネージャーの初期化（ワークスペースDBを設定）
-  // MCPServerManager プロバイダを先に設定（serverManager は後で代入される）
+  // 初始化 Platform API Manager（配置工作区 DB）；先设置 serverManager 提供者（serverManager 稍后赋值）
   getPlatformAPIManager().setServerManagerProvider(() => serverManager);
   await getPlatformAPIManager().initialize();
 
-  // MCPServerManagerの初期化
   serverManager = new MCPServerManager();
 
-  // データベースからサーバーリストを読み込む
+  // 从数据库加载服务器列表
   await serverManager.initializeAsync();
-
-  // Cloud SyncサービスにServerManagerを連携
-  getCloudSyncService().initialize(() => serverManager);
 
   // Tool catalog service
   toolCatalogService = new ToolCatalogService(serverManager);
 
-  // AggregatorServerの初期化
   aggregatorServer = new AggregatorServer(serverManager, toolCatalogService);
 
-  // HTTPサーバーの初期化とスタート
   mcpHttpServer = new MCPHttpServer(serverManager, 3282, aggregatorServer);
   try {
     await mcpHttpServer.start();
   } catch (error) {
     console.error("Failed to start MCP HTTP Server:", error);
   }
-
-  // 既存のMCPサーバー設定をインポート
-  await importExistingServerConfigurations();
-
-  // スキルのシンボリックリンクを検証・修復
-  getSkillService().verifyAndRepairSymlinks();
 }
 
-/**
- * ユーザーインターフェース関連の初期化を行う
- */
 function initUI({
   showMainWindow = true,
 }: { showMainWindow?: boolean } = {}): void {
-  // メインウィンドウ作成
   createWindow({ showOnCreate: showMainWindow });
 
   if (!showMainWindow && process.platform === "darwin" && app.dock) {
     app.dock.hide();
   }
 
-  // Platform APIマネージャーにメインウィンドウを設定
   if (mainWindow) {
     getPlatformAPIManager().setMainWindow(mainWindow);
   }
 
-  // システムトレイ作成
   createTray(serverManager);
 
-  // トレイコンテキストメニューの定期更新を設定
   setupTrayUpdateTimer(serverManager);
 }
 
-/**
- * アプリケーション全体の初期化を行う
- */
 async function initApplication(): Promise<void> {
-  // 環境設定を初期化
   initializeEnvironment();
   const DEV_CSP = `
     default-src 'self' 'unsafe-inline' http://localhost:* ws://localhost:*;
     script-src 'self' 'unsafe-eval' 'unsafe-inline';
-    connect-src 'self' http://localhost:* ws://localhost:* https://mcp-router.net https://staging.mcp-router.net https://us.i.posthog.com https://us-assets.i.posthog.com;
+    connect-src 'self' http://localhost:* ws://localhost:* https://github.com https://api.github.com https://objects.githubusercontent.com;
     img-src 'self' data:;
   `
     .replace(/\s+/g, " ")
@@ -340,13 +298,10 @@ async function initApplication(): Promise<void> {
     });
   });
 
-  // アプリケーション名を設定
   app.setName("MCP Router");
 
-  // アプリケーションメニューを設定
   setApplicationMenu();
 
-  // 起動時のウィンドウ表示設定を取得
   const settingsService = getSettingsService();
   let showWindowOnStartup = true;
   try {
@@ -368,13 +323,10 @@ async function initApplication(): Promise<void> {
 
   applyLoginItemSettings(showWindowOnStartup);
 
-  // データベース初期化
   await initDatabase();
 
-  // MCPサービス初期化
   await initMCPServices();
 
-  // IPC通信ハンドラの初期化
   setupIpcHandlers({
     getServerManager: () => serverManager,
   });
@@ -382,7 +334,6 @@ async function initApplication(): Promise<void> {
   const shouldShowMainWindow =
     (!launchedAtLogin || showWindowOnStartup) && !launchedWithHiddenFlag;
 
-  // UI初期化
   initUI({ showMainWindow: shouldShowMainWindow });
 }
 

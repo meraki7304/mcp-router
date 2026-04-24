@@ -5,20 +5,15 @@ import Database, {
   RunResult,
 } from "better-sqlite3";
 
-/**
- * SQLiteデータベース管理クラス
- * BetterSQLite3のラッパーとして機能
- */
 export class SqliteManager {
   private db: DatabaseType;
   private dbPath: string;
 
   /**
-   * コンストラクタ
-   * @param dbNameOrPath データベース名またはフルパス
+   * @param dbNameOrPath 数据库名称或完整路径
    */
   constructor(dbNameOrPath: string) {
-    // フルパスが渡された場合はそのまま使用、それ以外はuserDataディレクトリに配置
+    // 传入绝对路径时直接使用，否则放到 userData 目录下
     if (path.isAbsolute(dbNameOrPath)) {
       this.dbPath = dbNameOrPath;
     } else {
@@ -26,7 +21,6 @@ export class SqliteManager {
       this.dbPath = path.join(dbDir, `${dbNameOrPath}.db`);
     }
 
-    // ディレクトリが存在しない場合は作成
     try {
       const fs = require("fs");
       const dbDir = path.dirname(this.dbPath);
@@ -34,146 +28,100 @@ export class SqliteManager {
         fs.mkdirSync(dbDir, { recursive: true });
       }
     } catch (error) {
-      console.error("データベースディレクトリの作成に失敗しました:", error);
+      console.error("创建数据库目录失败:", error);
       throw error;
     }
 
-    // データベース接続
     try {
       this.db = new Database(this.dbPath);
 
-      // プラグマ設定
       this.db.pragma("journal_mode = WAL");
       this.db.pragma("foreign_keys = ON");
     } catch (error) {
       console.error(
-        `データベース '${dbNameOrPath}' の初期化に失敗しました:`,
+        `初始化数据库 '${dbNameOrPath}' 失败:`,
         error,
       );
       throw error;
     }
   }
 
-  /**
-   * データベース接続インスタンスを取得
-   */
   public getConnection(): DatabaseType {
     return this.db;
   }
 
-  /**
-   * データベースファイルのパスを取得
-   */
   public getDbPath(): string {
     return this.dbPath;
   }
 
-  /**
-   * SQLクエリを実行（トランザクションなし）
-   * @param sql SQL文
-   * @param params パラメータ
-   */
   public execute(sql: string, params: any = {}): RunResult {
     try {
       return this.db.prepare(sql).run(params);
     } catch (error) {
-      console.error("SQLクエリの実行に失敗しました:", error);
+      console.error("执行 SQL 查询失败:", error);
       throw error;
     }
   }
 
-  /**
-   * SQLクエリを実行し、結果を取得（単一行）
-   * @param sql SQL文
-   * @param params パラメータ
-   */
   public get<T>(sql: string, params: any = {}): T | undefined {
     try {
       return this.db.prepare(sql).get(params) as T | undefined;
     } catch (error) {
-      console.error("SQLクエリの実行に失敗しました:", error);
+      console.error("执行 SQL 查询失败:", error);
       throw error;
     }
   }
 
-  /**
-   * SQLクエリを実行し、結果を取得（複数行）
-   * @param sql SQL文
-   * @param params パラメータ
-   */
   public all<T>(sql: string, params: any = {}): T[] {
     try {
       return this.db.prepare(sql).all(params) as T[];
     } catch (error) {
-      console.error("SQLクエリの実行に失敗しました:", error);
+      console.error("执行 SQL 查询失败:", error);
       throw error;
     }
   }
 
-  /**
-   * トランザクションを実行
-   * @param callback トランザクション内で実行する関数
-   */
   public transaction<T>(callback: () => T): T {
     try {
-      // トランザクションの作成
       const transaction = this.db.transaction(callback);
       return transaction();
     } catch (error) {
-      console.error("トランザクションの実行に失敗しました:", error);
+      console.error("执行事务失败:", error);
       throw error;
     }
   }
 
-  /**
-   * データベース接続を閉じる
-   */
   public close(): void {
     try {
       this.db.close();
     } catch (error) {
-      console.error("データベース接続のクローズに失敗しました:", error);
+      console.error("关闭数据库连接失败:", error);
       throw error;
     }
   }
 
-  /**
-   * ステートメントを準備
-   * @param sql SQL文
-   */
   public prepare(sql: string): any {
     try {
       return this.db.prepare(sql);
     } catch (error) {
-      console.error("ステートメントの準備に失敗しました:", error);
+      console.error("准备 SQL 语句失败:", error);
       throw error;
     }
   }
 
-  /**
-   * 複数のSQL文を実行
-   * @param sql SQL文（複数可）
-   */
   public exec(sql: string): void {
     try {
       this.db.exec(sql);
     } catch (error) {
-      console.error("SQLの実行に失敗しました:", error);
+      console.error("执行 SQL 失败:", error);
       throw error;
     }
   }
 }
 
-/**
- * SQLiteManagerのシングルトンクラス
- * 単一のデータベースインスタンスを管理
- */
 class SqliteManagerSingleton {
   private static instance: SqliteManager | null = null;
 
-  /**
-   * SQLiteManagerのシングルトンインスタンスを取得
-   */
   public static getInstance(dbName = "mcprouter"): SqliteManager {
     if (!SqliteManagerSingleton.instance) {
       SqliteManagerSingleton.instance = new SqliteManager(dbName);
@@ -182,11 +130,10 @@ class SqliteManagerSingleton {
   }
 }
 
-// グローバルなワークスペースデータベース参照
 let currentWorkspaceDb: SqliteManager | null = null;
 
 /**
- * ワークスペースデータベースを設定（PlatformAPIManagerから呼び出される）
+ * 设置工作区数据库（由 PlatformAPIManager 调用）
  */
 export function setWorkspaceDatabase(db: SqliteManager | null): void {
   console.log(
@@ -197,29 +144,25 @@ export function setWorkspaceDatabase(db: SqliteManager | null): void {
 }
 
 /**
- * 現在のワークスペースのSQLiteManagerインスタンスを取得
- * ワークスペース切り替えに対応
- * @param dbName データベース名
- * @param forceMain true の場合、ワークスペースが設定されていてもメインDBを返す
+ * 获取当前工作区的 SqliteManager 实例，支持工作区切换。
+ * @param dbName 数据库名称
+ * @param forceMain 为 true 时始终返回主数据库，忽略当前工作区设置
  */
 export function getSqliteManager(
   dbName = "mcprouter",
   forceMain = false,
 ): SqliteManager {
-  // forceMainがtrueの場合、常にメインデータベースを使用
   if (forceMain) {
     return SqliteManagerSingleton.getInstance(dbName);
   }
 
-  // ワークスペースデータベースが設定されている場合はそれを使用
-  // 注意: ワークスペースモードでは引数のdbNameは無視される
+  // 工作区数据库已设置时优先使用；注意：工作区模式下 dbName 参数会被忽略
   if (currentWorkspaceDb) {
-    // デバッグログは開発時のみ（過度なログ出力を防ぐ）
     // console.log("[getSqliteManager] Returning workspace DB (ignoring dbName:", dbName, ")");
     return currentWorkspaceDb;
   }
 
-  // フォールバック：従来のシングルトンパターン（初期化時のみ）
+  // 降级：使用旧的单例模式（仅限初始化阶段）
   console.log(
     "[getSqliteManager] WARNING: No workspace DB set, falling back to singleton DB:",
     dbName,

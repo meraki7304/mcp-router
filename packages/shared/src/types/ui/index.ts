@@ -1,5 +1,3 @@
-import { UserInfo } from "../auth";
-
 // Toast and notification types
 export interface ToastMessage {
   id: string;
@@ -55,18 +53,4 @@ export interface UIState {
 
   // Theme
   theme: Theme;
-}
-
-export interface AuthStoreState {
-  // Authentication data
-  isAuthenticated: boolean;
-  userId: string | null;
-  authToken: string | null;
-  userInfo: UserInfo | null;
-
-  // Login state
-  isLoggingIn: boolean;
-
-  // Error states
-  loginError: string | null;
 }

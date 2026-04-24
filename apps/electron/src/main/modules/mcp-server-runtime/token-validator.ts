@@ -28,7 +28,6 @@ export class TokenValidator {
     token: string | undefined,
     serverName: string,
   ): string {
-    // 通常の認証ロジック
     if (!token || typeof token !== "string") {
       throw new McpError(ErrorCode.InvalidRequest, "Token is required");
     }

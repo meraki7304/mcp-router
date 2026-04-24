@@ -3,26 +3,18 @@ import { HookModule } from "@mcp_router/shared";
 import { v4 as uuidv4 } from "uuid";
 
 /**
- * Hook Moduleリポジトリクラス
- * HookModuleの永続化を管理
+ * Hook Module 仓库类，管理 HookModule 的持久化
  */
 export class HookRepository {
   private static instance: HookRepository | null = null;
 
-  /**
-   * コンストラクタ
-   */
   private constructor() {
     this.initializeTable();
   }
 
-  /**
-   * テーブルを初期化
-   */
   private initializeTable(): void {
     const db = getSqliteManager();
     try {
-      // hook_modulesテーブルを作成
       db.execute(`
         CREATE TABLE IF NOT EXISTS hook_modules (
           id TEXT PRIMARY KEY,
@@ -33,21 +25,17 @@ export class HookRepository {
         )
       `);
 
-      // インデックスを作成
       db.execute(
         "CREATE INDEX IF NOT EXISTS idx_hook_modules_name ON hook_modules(name)",
       );
 
-      console.log("[HookRepository] テーブルの初期化が完了しました");
+      console.log("[HookRepository] 表初始化完成");
     } catch (error) {
-      console.error("[HookRepository] テーブルの初期化中にエラー:", error);
+      console.error("[HookRepository] 表初始化时出错:", error);
       throw error;
     }
   }
 
-  /**
-   * シングルトンインスタンスの取得
-   */
   public static getInstance(): HookRepository {
     if (!HookRepository.instance) {
       HookRepository.instance = new HookRepository();
@@ -55,16 +43,10 @@ export class HookRepository {
     return HookRepository.instance;
   }
 
-  /**
-   * テスト用にインスタンスをリセット
-   */
   public static resetInstance(): void {
     HookRepository.instance = null;
   }
 
-  /**
-   * 全てのHook Moduleを取得
-   */
   public getAllHookModules(): HookModule[] {
     const db = getSqliteManager();
     const rows = db.all(`
@@ -80,9 +62,6 @@ export class HookRepository {
     }));
   }
 
-  /**
-   * IDでHook Moduleを取得
-   */
   public getHookModuleById(id: string): HookModule | null {
     const db = getSqliteManager();
     const row = db.get(
@@ -105,9 +84,6 @@ export class HookRepository {
     };
   }
 
-  /**
-   * 名前でHook Moduleを取得
-   */
   public getHookModuleByName(name: string): HookModule | null {
     const db = getSqliteManager();
     const row = db.get(
@@ -130,9 +106,6 @@ export class HookRepository {
     };
   }
 
-  /**
-   * Hook Moduleを作成
-   */
   public createHookModule(module: Omit<HookModule, "id">): HookModule {
     const db = getSqliteManager();
     const now = Date.now();
@@ -163,9 +136,6 @@ export class HookRepository {
     return newModule;
   }
 
-  /**
-   * Hook Moduleを更新
-   */
   public updateHookModule(
     id: string,
     updates: Partial<Omit<HookModule, "id">>,
@@ -201,9 +171,6 @@ export class HookRepository {
     return updatedModule;
   }
 
-  /**
-   * Hook Moduleを削除
-   */
   public deleteHookModule(id: string): boolean {
     const db = getSqliteManager();
     const result = db.execute(
@@ -217,9 +184,6 @@ export class HookRepository {
     return result.changes > 0;
   }
 
-  /**
-   * Hook Moduleの存在確認（名前）
-   */
   public existsByName(name: string): boolean {
     const db = getSqliteManager();
     const row = db.get(
@@ -234,14 +198,11 @@ export class HookRepository {
     return row?.count > 0;
   }
 
-  /**
-   * Hook Moduleをインポート（名前の重複を回避）
-   */
+  // 导入时自动处理名称冲突（追加数字后缀）
   public importHookModule(module: Omit<HookModule, "id">): HookModule {
     let name = module.name;
     let counter = 1;
 
-    // 名前が重複する場合は番号を付与
     while (this.existsByName(name)) {
       name = `${module.name}_${counter}`;
       counter++;
@@ -253,25 +214,16 @@ export class HookRepository {
     });
   }
 
-  /**
-   * 複数のHook Moduleを一括作成
-   */
   public createHookModules(modules: Omit<HookModule, "id">[]): HookModule[] {
     return modules.map((module) => this.createHookModule(module));
   }
 
-  /**
-   * 全てのHook Moduleを削除（テスト用）
-   */
   public deleteAllHookModules(): void {
     const db = getSqliteManager();
     db.execute("DELETE FROM hook_modules");
   }
 }
 
-/**
- * HookRepositoryのシングルトンインスタンスを取得
- */
 export function getHookRepository(): HookRepository {
   return HookRepository.getInstance();
 }

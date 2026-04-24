@@ -18,9 +18,8 @@ interface ServerStats {
 }
 
 export interface CreateServerInput {
-  type: "config" | "dxt";
+  type: "config";
   config?: MCPServerConfig;
-  dxtFile?: Uint8Array;
 }
 
 export interface ServerAPI {

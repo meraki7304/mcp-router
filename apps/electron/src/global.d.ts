@@ -4,16 +4,11 @@
 
 import type {
   AppSettings,
-  CloudSyncStatus,
   MCPTool,
   MCPServer,
   Project,
   ProjectOptimization,
   TokenServerAccess,
-  Skill,
-  SkillWithContent,
-  CreateSkillInput,
-  UpdateSkillInput,
 } from "@mcp_router/shared";
 import {
   CreateServerInput,
@@ -26,24 +21,6 @@ import { ServerPackageUpdates } from "./lib/utils/backend/package-version-resolv
 declare global {
   interface Window {
     electronAPI: {
-      // Authentication
-      login: (idp?: string) => Promise<boolean>;
-      logout: () => Promise<boolean>;
-      getAuthStatus: (forceRefresh?: boolean) => Promise<{
-        authenticated: boolean;
-        userId?: string;
-        user?: any;
-        token?: string;
-      }>;
-      handleAuthToken: (token: string, state?: string) => Promise<boolean>;
-      onAuthStatusChanged: (
-        callback: (status: {
-          loggedIn: boolean;
-          userId?: string;
-          user?: any;
-        }) => void,
-      ) => () => void;
-
       listMcpServers: () => Promise<any>;
       startMcpServer: (id: string) => Promise<boolean>;
       stopMcpServer: (id: string) => Promise<boolean>;
@@ -81,11 +58,6 @@ declare global {
         count: number;
       }>;
 
-      // Cloud Sync
-      getCloudSyncStatus: () => Promise<CloudSyncStatus>;
-      setCloudSyncEnabled: (enabled: boolean) => Promise<CloudSyncStatus>;
-      setCloudSyncPassphrase: (passphrase: string) => Promise<void>;
-
       // MCP Apps Management
       listMcpApps: () => Promise<McpApp[]>;
       addMcpAppConfig: (appName: string) => Promise<McpAppsManagerResult>;
@@ -95,7 +67,6 @@ declare global {
         appName: string,
         serverAccess: TokenServerAccess,
       ) => Promise<McpAppsManagerResult>;
-      unifyAppConfig: (appName: string) => Promise<McpAppsManagerResult>;
 
       // Command checking
       checkCommandExists: (command: string) => Promise<boolean>;
@@ -112,9 +83,6 @@ declare global {
         success: boolean;
         updates?: ServerPackageUpdates;
       }>;
-
-      // Feedback
-      submitFeedback: (feedback: string) => Promise<boolean>;
 
       // Update Management
       checkForUpdates: () => Promise<{ updateAvailable: boolean }>;
@@ -136,22 +104,6 @@ declare global {
         errors?: { node?: string; pnpm?: string; uv?: string };
       }>;
       restartApp: () => Promise<boolean>;
-
-      // Workspace Management
-      listWorkspaces: () => Promise<any[]>;
-      createWorkspace: (config: any) => Promise<any>;
-      updateWorkspace: (
-        id: string,
-        updates: any,
-      ) => Promise<{ success: boolean }>;
-      deleteWorkspace: (id: string) => Promise<{ success: boolean }>;
-      switchWorkspace: (id: string) => Promise<{ success: boolean }>;
-      getCurrentWorkspace: () => Promise<any>;
-      getWorkspaceCredentials: (
-        id: string,
-      ) => Promise<{ token: string | null }>;
-      onWorkspaceSwitched: (callback: (workspace: any) => void) => () => void;
-      onWorkspaceConfigChanged: (callback: (config: any) => void) => () => void;
 
       // Projects Management
       listProjects: () => Promise<Project[]>;
@@ -199,13 +151,6 @@ declare global {
         script: string,
       ) => Promise<{ valid: boolean; error?: string }>;
 
-      // Skills Management
-      listSkills: () => Promise<SkillWithContent[]>;
-      createSkill: (input: CreateSkillInput) => Promise<Skill>;
-      updateSkill: (id: string, updates: UpdateSkillInput) => Promise<Skill>;
-      deleteSkill: (id: string) => Promise<void>;
-      openSkillFolder: (id?: string) => Promise<void>;
-      importSkill: () => Promise<Skill>;
     };
   }
 }

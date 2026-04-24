@@ -1,62 +1,29 @@
 /**
- * Electron-specific Platform API implementation
+ * Electron 专用的 Platform API 实现（离线本地模式）
  */
 
 import type { PlatformAPI } from "@mcp_router/shared";
 import type {
-  AuthAPI,
   ServerAPI,
   AppAPI,
   PackageAPI,
   SettingsAPI,
-  CloudSyncAPI,
   LogAPI,
-  WorkspaceAPI,
   WorkflowAPI,
-  Workspace,
   ProjectsAPI,
-  SkillsAPI,
 } from "@mcp_router/shared";
 
-// Electron implementation of the Platform API
 class ElectronPlatformAPI implements PlatformAPI {
-  auth: AuthAPI;
   servers: ServerAPI;
   apps: AppAPI;
   packages: PackageAPI;
   settings: SettingsAPI;
-  cloudSync: CloudSyncAPI;
   logs: LogAPI;
-  workspaces: WorkspaceAPI;
   workflows: WorkflowAPI;
   projects: ProjectsAPI;
-  skills: SkillsAPI;
 
   constructor() {
-    // Initialize auth domain
-    this.auth = {
-      signIn: (provider) => window.electronAPI.login(provider),
-      signOut: () => window.electronAPI.logout(),
-      getStatus: (forceRefresh) =>
-        window.electronAPI.getAuthStatus(forceRefresh).then((status) => ({
-          authenticated: status.authenticated ?? false,
-          userId: status.userId,
-          user: status.user,
-          token: status.token,
-        })),
-      handleToken: (token, state) =>
-        window.electronAPI.handleAuthToken(token, state),
-      onChange: (callback) =>
-        window.electronAPI.onAuthStatusChanged((status) =>
-          callback({
-            authenticated: status.loggedIn,
-            userId: status.userId,
-            user: status.user,
-          }),
-        ),
-    };
-
-    // Initialize servers domain
+    // servers 域
     this.servers = {
       list: () => window.electronAPI.listMcpServers(),
       listTools: (id) => window.electronAPI.listMcpServerTools(id),
@@ -80,16 +47,15 @@ class ElectronPlatformAPI implements PlatformAPI {
       selectFile: (options) => window.electronAPI.serverSelectFile(options),
     };
 
-    // Initialize apps domain (with token management)
+    // apps 域（含 token 管理）
     this.apps = {
       list: () => window.electronAPI.listMcpApps(),
       create: (appName) => window.electronAPI.addMcpAppConfig(appName),
       delete: (appName) => window.electronAPI.deleteMcpApp(appName),
       updateServerAccess: (appName, serverAccess) =>
         window.electronAPI.updateAppServerAccess(appName, serverAccess),
-      unifyConfig: (appName) => window.electronAPI.unifyAppConfig(appName),
 
-      // Token management
+      // Token 管理占位（Electron 端由 apps 接口直接处理）
       tokens: {
         generate: async () => {
           throw new Error("Token generation not available in Electron");
@@ -103,7 +69,7 @@ class ElectronPlatformAPI implements PlatformAPI {
       },
     };
 
-    // Initialize packages domain (with system utilities)
+    // packages 域（含系统工具）
     this.packages = {
       resolveVersions: (argsString, manager) =>
         window.electronAPI.resolvePackageVersionsInArgs(argsString, manager),
@@ -112,7 +78,6 @@ class ElectronPlatformAPI implements PlatformAPI {
       checkManagers: () => window.electronAPI.checkPackageManagers(),
       installManagers: () => window.electronAPI.installPackageManagers(),
 
-      // System utilities
       system: {
         getPlatform: () => window.electronAPI.getPlatform(),
         checkCommand: (command) =>
@@ -126,64 +91,27 @@ class ElectronPlatformAPI implements PlatformAPI {
       },
     };
 
-    // Initialize settings domain
+    // settings 域
     this.settings = {
       get: () => window.electronAPI.getSettings(),
       save: (settings) => window.electronAPI.saveSettings(settings),
       incrementOverlayCount: () =>
         window.electronAPI.incrementPackageManagerOverlayCount(),
-      submitFeedback: (feedback) => window.electronAPI.submitFeedback(feedback),
     };
 
-    // Initialize Cloud Sync domain
-    this.cloudSync = {
-      getStatus: () => window.electronAPI.getCloudSyncStatus(),
-      setEnabled: (enabled) => window.electronAPI.setCloudSyncEnabled(enabled),
-      setPassphrase: (passphrase) =>
-        window.electronAPI.setCloudSyncPassphrase(passphrase),
-    };
-
-    // Initialize logs domain
+    // logs 域
     this.logs = {
       query: async (options) => {
         const result = await window.electronAPI.getRequestLogs(options);
-        // Ensure consistent return type with LogQueryResult
         return {
           ...result,
-          items: result.logs, // LogQueryResult extends CursorPaginationResult which requires items
-          // logs property is already included from spread operator
+          items: result.logs,
         };
       },
     };
 
-    // Initialize workspaces domain
-    this.workspaces = {
-      list: () => window.electronAPI.listWorkspaces(),
-      get: async (id) => {
-        const workspaces = await window.electronAPI.listWorkspaces();
-        return workspaces.find((w: Workspace) => w.id === id) || null;
-      },
-      create: (input) => window.electronAPI.createWorkspace(input),
-      update: async (id, updates) => {
-        await window.electronAPI.updateWorkspace(id, updates);
-        // Return the updated workspace
-        const workspaces = await window.electronAPI.listWorkspaces();
-        const updated = workspaces.find((w: Workspace) => w.id === id);
-        if (!updated) throw new Error("Workspace not found");
-        return updated;
-      },
-      delete: async (id) => {
-        await window.electronAPI.deleteWorkspace(id);
-      },
-      switch: async (id) => {
-        await window.electronAPI.switchWorkspace(id);
-      },
-      getActive: () => window.electronAPI.getCurrentWorkspace(),
-    };
-
-    // Initialize workflows domain (with hook modules)
+    // workflows 域（含 hook modules）
     this.workflows = {
-      // Workflow operations
       workflows: {
         list: () => window.electronAPI.listWorkflows(),
         get: (id) => window.electronAPI.getWorkflow(id),
@@ -199,7 +127,6 @@ class ElectronPlatformAPI implements PlatformAPI {
           window.electronAPI.getWorkflowsByType(workflowType),
       },
 
-      // Hook Module operations
       hooks: {
         list: () => window.electronAPI.listHookModules(),
         get: (id) => window.electronAPI.getHookModule(id),
@@ -214,7 +141,7 @@ class ElectronPlatformAPI implements PlatformAPI {
       },
     };
 
-    // Initialize projects domain
+    // projects 域
     this.projects = {
       list: () => window.electronAPI.listProjects(),
       create: (input) => window.electronAPI.createProject(input),
@@ -222,23 +149,7 @@ class ElectronPlatformAPI implements PlatformAPI {
       delete: (id) => window.electronAPI.deleteProject(id),
     };
 
-    // Initialize skills domain
-    this.skills = {
-      list: () => window.electronAPI.listSkills(),
-      create: (input) => window.electronAPI.createSkill(input),
-      update: (id, updates) => window.electronAPI.updateSkill(id, updates),
-      delete: (id) => window.electronAPI.deleteSkill(id),
-      openFolder: (id) => window.electronAPI.openSkillFolder(id),
-      import: () => window.electronAPI.importSkill(),
-      agentPaths: {
-        list: () => window.electronAPI.listAgentPaths(),
-        create: (input) => window.electronAPI.createAgentPath(input),
-        delete: (id) => window.electronAPI.deleteAgentPath(id),
-        selectFolder: () => window.electronAPI.selectAgentPathFolder(),
-      },
-    };
   }
 }
 
-// Create the Platform API instance
 export const electronPlatformAPI = new ElectronPlatformAPI();

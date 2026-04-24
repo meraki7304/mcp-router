@@ -10,9 +10,6 @@ import {
   MCPInputParam,
 } from "@mcp_router/shared";
 
-/**
- * MCPクライアント接続機能を提供するクラス
- */
 export class MCPClient {
   /**
    * Creates an MCP client and connects to the specified server

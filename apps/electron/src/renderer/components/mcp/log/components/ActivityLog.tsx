@@ -22,17 +22,11 @@ interface ActivityLogProps {
   loading?: boolean;
 }
 
-/**
- * 時刻をフォーマット
- */
 const formatTime = (timestamp: number): string => {
   const date = new Date(timestamp);
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 };
 
-/**
- * JSONを整形して表示
- */
 const formatJson = (data: unknown): string => {
   if (data === undefined || data === null) return "-";
   try {
@@ -42,9 +36,6 @@ const formatJson = (data: unknown): string => {
   }
 };
 
-/**
- * 実行ツール行（アコーディオン）
- */
 const ExecutionRow: React.FC<{
   exec: ActivityLogEntry;
   isExpanded: boolean;
@@ -56,7 +47,6 @@ const ExecutionRow: React.FC<{
 
   return (
     <div className="border-t border-border/50 first:border-t-0">
-      {/* 実行行ヘッダー */}
       <button
         onClick={onToggle}
         className={cn(
@@ -96,10 +86,8 @@ const ExecutionRow: React.FC<{
         )}
       </button>
 
-      {/* 展開時の詳細 */}
       {isExpanded && (
         <div className="px-3 pb-3 pt-1 bg-muted/10 text-xs space-y-2">
-          {/* Arguments */}
           <div>
             <p className="text-muted-foreground font-medium mb-1">
               {t("logs.activity.log.arguments", "Arguments")}
@@ -109,7 +97,6 @@ const ExecutionRow: React.FC<{
             </pre>
           </div>
 
-          {/* Error or Result */}
           {hasError && exec.errorMessage ? (
             <div>
               <p className="text-destructive font-medium mb-1">
@@ -135,9 +122,6 @@ const ExecutionRow: React.FC<{
   );
 };
 
-/**
- * セッションカード（ToolDiscovery + 関連ToolExecute）
- */
 const SessionCard: React.FC<{
   session: ActivitySession;
   expandedExecIds: Set<string>;
@@ -156,7 +140,6 @@ const SessionCard: React.FC<{
         hasError ? "border-destructive/30" : "border-border",
       )}
     >
-      {/* ヘッダー部分 */}
       <div className="p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -171,7 +154,6 @@ const SessionCard: React.FC<{
               </p>
             )}
 
-            {/* クエリタグ */}
             {discovery.query && discovery.query.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-1.5">
                 {discovery.query.slice(0, 5).map((q: string, i: number) => (
@@ -197,7 +179,6 @@ const SessionCard: React.FC<{
         </div>
       </div>
 
-      {/* 実行ツール一覧 */}
       {executions.length > 0 && (
         <div className="border-t border-border/50">
           {executions.map((exec) => (
@@ -211,7 +192,6 @@ const SessionCard: React.FC<{
         </div>
       )}
 
-      {/* 実行なしの場合 */}
       {executions.length === 0 && (
         <div className="border-t border-border/50 px-3 py-2 text-xs text-muted-foreground italic">
           {t("logs.activity.log.noExecutions", "No tools executed")}
@@ -221,9 +201,6 @@ const SessionCard: React.FC<{
   );
 };
 
-/**
- * タイプに応じたアイコンを返す
- */
 const getActivityIcon = (
   type: ActivityLogEntry["type"],
   hasError: boolean,
@@ -246,9 +223,6 @@ const getActivityIcon = (
   }
 };
 
-/**
- * タイプに応じた表示名を返す
- */
 const getActivityDisplayName = (entry: ActivityLogEntry): string => {
   switch (entry.type) {
     case "ToolExecute":
@@ -263,9 +237,6 @@ const getActivityDisplayName = (entry: ActivityLogEntry): string => {
   }
 };
 
-/**
- * 単独のアクティビティカード（ToolExecute、CallTool、GetPrompt、ReadResource）
- */
 const StandaloneCard: React.FC<{
   entry: ActivityLogEntry;
   isExpanded: boolean;
@@ -283,7 +254,6 @@ const StandaloneCard: React.FC<{
         hasError ? "border-destructive/30" : "border-border",
       )}
     >
-      {/* ヘッダー */}
       <button
         onClick={onToggle}
         className={cn(
@@ -323,10 +293,8 @@ const StandaloneCard: React.FC<{
         )}
       </button>
 
-      {/* 展開時の詳細 */}
       {isExpanded && (
         <div className="px-3 pb-3 pt-1 border-t border-border/50 bg-muted/10 text-xs space-y-2">
-          {/* Arguments (ReadResource以外) */}
           {hasArguments && (
             <div>
               <p className="text-muted-foreground font-medium mb-1">
@@ -338,7 +306,6 @@ const StandaloneCard: React.FC<{
             </div>
           )}
 
-          {/* Error or Result */}
           {hasError && entry.errorMessage ? (
             <div>
               <p className="text-destructive font-medium mb-1">
@@ -409,7 +376,6 @@ const ActivityLog: React.FC<ActivityLogProps> = ({
     );
   }
 
-  // 統計
   const stats = {
     sessions: items.filter((i) => i.type === "session").length,
     executions: items.reduce((acc, item) => {

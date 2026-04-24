@@ -1,61 +1,45 @@
-import { setupAuthHandlers } from "../modules/auth/auth.ipc";
 import { setupMcpServerHandlers } from "../modules/mcp-server-manager/mcp-server-manager.ipc";
 import { setupLogHandlers } from "../modules/mcp-logger/mcp-logger.ipc";
 import { setupSettingsHandlers } from "../modules/settings/settings.ipc";
 import { setupMcpAppsHandlers } from "../modules/mcp-apps-manager/mcp-apps-manager.ipc";
 import { setupSystemHandlers } from "../modules/system/system-handler";
 import { setupPackageHandlers } from "../modules/system/package-handlers";
-import { setupWorkspaceHandlers } from "../modules/workspace/workspace.ipc";
 import { setupWorkflowHandlers } from "../modules/workflow/workflow.ipc";
 import { setupHookHandlers } from "../modules/workflow/hook.ipc";
 import { setupProjectHandlers } from "../modules/projects/projects.ipc";
-import { setupCloudSyncHandlers } from "../modules/cloud-sync/cloud-sync.ipc";
-import { setupSkillHandlers } from "../modules/skills/skills.ipc";
 import type { MCPServerManager } from "@/main/modules/mcp-server-manager/mcp-server-manager";
 
 /**
- * IPC通信ハンドラのセットアップを行う関数
- * アプリケーション初期化時に呼び出される
+ * 注册所有 IPC 通信处理器
+ * 应用初始化时调用
  */
 export function setupIpcHandlers(deps: {
   getServerManager: () => MCPServerManager;
 }): void {
-  // 認証関連
-  setupAuthHandlers();
-
-  // MCPサーバー関連
+  // MCP 服务器相关
   setupMcpServerHandlers(deps.getServerManager);
 
-  // ログ関連
+  // 日志相关
   setupLogHandlers();
 
-  // 設定関連
+  // 设置相关
   setupSettingsHandlers();
 
-  // MCPアプリ設定関連
+  // MCP Apps 相关
   setupMcpAppsHandlers();
 
-  // システム関連（ユーティリティ、フィードバック、アップデート）
+  // 系统相关（工具、更新）
   setupSystemHandlers();
 
-  // パッケージ関連（バージョン解決とマネージャー管理）
+  // 包管理器（版本解析与安装）
   setupPackageHandlers();
 
-  // ワークスペース関連
-  setupWorkspaceHandlers();
-
-  // Workflow関連
+  // Workflow
   setupWorkflowHandlers();
 
-  // Hook Module関連
+  // Hook Module
   setupHookHandlers();
 
-  // Projects関連
+  // Projects
   setupProjectHandlers({ getServerManager: deps.getServerManager });
-
-  // Cloud Sync関連
-  setupCloudSyncHandlers();
-
-  // Skills関連
-  setupSkillHandlers();
 }

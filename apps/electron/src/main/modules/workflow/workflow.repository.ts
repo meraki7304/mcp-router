@@ -3,26 +3,18 @@ import { WorkflowDefinition } from "@mcp_router/shared";
 import { v4 as uuidv4 } from "uuid";
 
 /**
- * Workflowリポジトリクラス
- * WorkflowDefinitionの永続化を管理
+ * Workflow 仓库类，管理 WorkflowDefinition 的持久化
  */
 export class WorkflowRepository {
   private static instance: WorkflowRepository | null = null;
 
-  /**
-   * コンストラクタ
-   */
   private constructor() {
     this.initializeTable();
   }
 
-  /**
-   * テーブルを初期化
-   */
   private initializeTable(): void {
     const db = getSqliteManager();
     try {
-      // workflowsテーブルを作成
       db.execute(`
         CREATE TABLE IF NOT EXISTS workflows (
           id TEXT PRIMARY KEY,
@@ -37,7 +29,6 @@ export class WorkflowRepository {
         )
       `);
 
-      // インデックスを作成
       db.execute(
         "CREATE INDEX IF NOT EXISTS idx_workflows_enabled ON workflows(enabled)",
       );
@@ -45,16 +36,13 @@ export class WorkflowRepository {
         "CREATE INDEX IF NOT EXISTS idx_workflows_type ON workflows(workflow_type)",
       );
 
-      console.log("[WorkflowRepository] テーブルの初期化が完了しました");
+      console.log("[WorkflowRepository] 表初始化完成");
     } catch (error) {
-      console.error("[WorkflowRepository] テーブルの初期化中にエラー:", error);
+      console.error("[WorkflowRepository] 表初始化时出错:", error);
       throw error;
     }
   }
 
-  /**
-   * シングルトンインスタンスの取得
-   */
   public static getInstance(): WorkflowRepository {
     if (!WorkflowRepository.instance) {
       WorkflowRepository.instance = new WorkflowRepository();
@@ -62,16 +50,10 @@ export class WorkflowRepository {
     return WorkflowRepository.instance;
   }
 
-  /**
-   * テスト用にインスタンスをリセット
-   */
   public static resetInstance(): void {
     WorkflowRepository.instance = null;
   }
 
-  /**
-   * 全てのワークフローを取得
-   */
   public getAllWorkflows(): WorkflowDefinition[] {
     const db = getSqliteManager();
     const rows = db.all(`
@@ -94,9 +76,6 @@ export class WorkflowRepository {
     }));
   }
 
-  /**
-   * 有効なワークフローのみを取得
-   */
   public getEnabledWorkflows(): WorkflowDefinition[] {
     const db = getSqliteManager();
     const rows = db.all(`
@@ -120,9 +99,6 @@ export class WorkflowRepository {
     }));
   }
 
-  /**
-   * IDでワークフローを取得
-   */
   public getWorkflowById(id: string): WorkflowDefinition | null {
     const db = getSqliteManager();
     const row = db.get(
@@ -152,9 +128,6 @@ export class WorkflowRepository {
     };
   }
 
-  /**
-   * ワークフロータイプで取得
-   */
   public getWorkflowsByType(workflowType: string): WorkflowDefinition[] {
     const db = getSqliteManager();
     const rows = db.all(
@@ -181,9 +154,6 @@ export class WorkflowRepository {
     }));
   }
 
-  /**
-   * ワークフローを作成
-   */
   public createWorkflow(
     workflow: Omit<WorkflowDefinition, "id" | "createdAt" | "updatedAt">,
   ): WorkflowDefinition {
@@ -224,9 +194,6 @@ export class WorkflowRepository {
     return newWorkflow;
   }
 
-  /**
-   * ワークフローを更新
-   */
   public updateWorkflow(
     id: string,
     updates: Partial<Omit<WorkflowDefinition, "id" | "createdAt">>,
@@ -272,9 +239,7 @@ export class WorkflowRepository {
     return updatedWorkflow;
   }
 
-  /**
-   * 指定したワークフローを有効化し、同じタイプの他のワークフローを無効化
-   */
+  // 激活指定 workflow，同时停用同类型的其他 workflow
   public setActiveWorkflow(id: string): boolean {
     const workflow = this.getWorkflowById(id);
     if (!workflow) {
@@ -283,7 +248,6 @@ export class WorkflowRepository {
 
     const db = getSqliteManager();
 
-    // 同じworkflowTypeの他の有効なワークフローを無効化
     db.execute(
       `
       UPDATE workflows
@@ -300,7 +264,6 @@ export class WorkflowRepository {
       },
     );
 
-    // 指定したワークフローを有効化
     db.execute(
       `
       UPDATE workflows
@@ -317,9 +280,6 @@ export class WorkflowRepository {
     return true;
   }
 
-  /**
-   * 指定したワークフローを無効化
-   */
   public disableWorkflow(id: string): boolean {
     const workflow = this.getWorkflowById(id);
     if (!workflow) {
@@ -344,9 +304,6 @@ export class WorkflowRepository {
     return true;
   }
 
-  /**
-   * ワークフローを削除
-   */
   public deleteWorkflow(id: string): boolean {
     const db = getSqliteManager();
     const result = db.execute(
@@ -360,18 +317,12 @@ export class WorkflowRepository {
     return result.changes > 0;
   }
 
-  /**
-   * 全てのワークフローを削除（テスト用）
-   */
   public deleteAllWorkflows(): void {
     const db = getSqliteManager();
     db.execute("DELETE FROM workflows");
   }
 }
 
-/**
- * WorkflowRepositoryのシングルトンインスタンスを取得
- */
 export function getWorkflowRepository(): WorkflowRepository {
   return WorkflowRepository.getInstance();
 }

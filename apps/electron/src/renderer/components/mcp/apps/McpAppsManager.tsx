@@ -1,15 +1,13 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@mcp_router/ui";
 import { usePlatformAPI } from "@/renderer/platform-api";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@mcp_router/ui";
-import { Badge } from "@mcp_router/ui";
 import { useTranslation } from "react-i18next";
 import { Input } from "@mcp_router/ui";
 import { Checkbox } from "@mcp_router/ui";
@@ -21,9 +19,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@mcp_router/ui";
-import HowToUse, { HowToUseHandle } from "./HowToUse";
 import { toast } from "sonner";
 import { ScrollArea, ScrollBar } from "@mcp_router/ui";
+import {
+  IconCopy,
+  IconKey,
+  IconSettings,
+  IconTrash,
+} from "@tabler/icons-react";
 
 import {
   McpApp,
@@ -34,6 +37,9 @@ import {
   UNASSIGNED_PROJECT_ID,
   useProjectStore,
 } from "@/renderer/stores/project-store";
+
+// Streamable HTTP 端点（与 main.ts 中 MCPHttpServer 端口保持一致）
+const MCP_ENDPOINT = "http://localhost:3282/mcp";
 
 const McpAppsManager: React.FC = () => {
   const { t } = useTranslation();
@@ -51,9 +57,6 @@ const McpAppsManager: React.FC = () => {
   const [appToDelete, setAppToDelete] = useState<McpApp | null>(null);
   const { projects, list: listProjects } = useProjectStore();
 
-  // Add ref for HowToUse component
-  const howToUseRef = useRef<HowToUseHandle>(null);
-
   useEffect(() => {
     loadApps();
     loadServers();
@@ -63,18 +66,13 @@ const McpAppsManager: React.FC = () => {
     listProjects();
   }, [listProjects]);
 
-  // アクセス制御ダイアログを開く
   const openAccessControlDialog = (app: McpApp) => {
     setSelectedApp(app);
-
-    // アプリのサーバーアクセスを設定
     const appServerAccess = app.serverAccess || {};
     setSelectedServerAccess({ ...appServerAccess });
-
     setIsAccessControlDialogOpen(true);
   };
 
-  // サーバーチェックボックスの変更
   const handleServerCheckboxChange = (serverId: string, checked: boolean) => {
     setSelectedServerAccess((prev) => ({
       ...prev,
@@ -103,12 +101,10 @@ const McpAppsManager: React.FC = () => {
     });
   };
 
-  // アクセス設定の保存
   const saveAccessControl = async () => {
     if (!selectedApp) return;
 
     try {
-      // サーバーアクセスの更新
       const serverResult = await platformAPI.apps.updateServerAccess(
         selectedApp.name,
         selectedServerAccess,
@@ -119,7 +115,6 @@ const McpAppsManager: React.FC = () => {
         return;
       }
 
-      // サーバー結果を更新
       if (serverResult.app) {
         setApps((prevApps) =>
           prevApps.map((app) =>
@@ -142,7 +137,6 @@ const McpAppsManager: React.FC = () => {
     }
   };
 
-  // サーバ一覧の読み込み
   const loadServers = async () => {
     try {
       const serverList = await platformAPI.servers.list();
@@ -165,7 +159,6 @@ const McpAppsManager: React.FC = () => {
     }
   };
 
-  // カスタムアプリの追加処理
   const handleAddCustomApp = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -175,94 +168,27 @@ const McpAppsManager: React.FC = () => {
     }
 
     try {
-      const result = await platformAPI.apps.create(customAppName);
+      const result: McpAppsManagerResult =
+        await platformAPI.apps.create(customAppName);
 
       if (result.success && result.app) {
-        // アプリリストに追加
         setApps((prevApps) => [...prevApps, result.app!]);
         toast.success(result.message);
-        setCustomAppName(""); // 入力欄をクリア
+        setCustomAppName("");
       } else {
         toast.error(result.message);
       }
     } catch (error: any) {
-      console.error("Failed to add custom app:", error);
+      console.error("Failed to add app:", error);
       toast.error(`Error: ${error.message}`);
     }
   };
 
-  const handleAddConfig = async (appName: string) => {
-    try {
-      const result: McpAppsManagerResult =
-        await platformAPI.apps.create(appName);
-
-      if (result.success && result.app) {
-        // Update the app in the list
-        setApps((prevApps) =>
-          prevApps.map((app) => (app.name === appName ? result.app! : app)),
-        );
-        toast.success(result.message);
-      } else {
-        toast.error(result.message);
-      }
-    } catch (error: any) {
-      console.error(`Failed to add MCP config to ${appName}:`, error);
-      toast.error(
-        `Error adding MCP configuration to ${appName}: ${error.message}`,
-      );
-    }
-  };
-
-  const getStatusBadge = (app: McpApp) => {
-    if (!app.installed) {
-      return <Badge variant="outline">{t("mcpApps.notInstalled")}</Badge>;
-    }
-    if (app.hasOtherServers) {
-      return (
-        <Badge variant="destructive">{t("mcpApps.multipleConfigs")}</Badge>
-      );
-    }
-    return <Badge variant="secondary">{t("mcpApps.installed")}</Badge>;
-  };
-
-  // アプリの設定を統一（他のMCPサーバ設定を削除）
-  const handleUnifyConfig = async (appName: string) => {
-    try {
-      const result: McpAppsManagerResult =
-        await platformAPI.apps.unifyConfig(appName);
-
-      if (result.success && result.app) {
-        // アプリリストを更新
-        setApps((prevApps) =>
-          prevApps.map((app) => (app.name === appName ? result.app! : app)),
-        );
-        toast.success(result.message);
-      } else {
-        toast.error(result.message);
-      }
-    } catch (error: any) {
-      console.error(`Failed to unify config for ${appName}:`, error);
-      toast.error(
-        `Error unifying configuration for ${appName}: ${error.message}`,
-      );
-    }
-  };
-
-  // Function to open HowToUse modal with the token from the selected app
-  const openHowToUseModal = (app: McpApp) => {
-    setSelectedApp(app);
-    if (howToUseRef.current) {
-      howToUseRef.current.showDialog();
-    }
-  };
-
-  // カスタムアプリ削除ダイアログを開く
   const openDeleteDialog = (app: McpApp) => {
     setAppToDelete(app);
     setIsDeleteDialogOpen(true);
   };
 
-  // カスタムアプリ削除実行
   const handleDeleteApp = async () => {
     if (!appToDelete) return;
 
@@ -270,7 +196,6 @@ const McpAppsManager: React.FC = () => {
       const success = await platformAPI.apps.delete(appToDelete.name);
 
       if (success) {
-        // アプリリストから削除
         setApps((prevApps) =>
           prevApps.filter((app) => app.name !== appToDelete.name),
         );
@@ -284,6 +209,17 @@ const McpAppsManager: React.FC = () => {
     } finally {
       setIsDeleteDialogOpen(false);
       setAppToDelete(null);
+    }
+  };
+
+  const handleCopyToken = async (token?: string) => {
+    if (!token) return;
+    try {
+      await navigator.clipboard.writeText(token);
+      toast.success(t("mcpApps.tokenCopied"));
+    } catch (error) {
+      console.error("Failed to copy token:", error);
+      toast.error(t("mcpApps.tokenCopyFailed"));
     }
   };
 
@@ -334,8 +270,34 @@ const McpAppsManager: React.FC = () => {
         <p className="text-muted-foreground">{t("mcpApps.description")}</p>
       </div>
 
-      {/* カスタムアプリ追加フォーム */}
-      <Card className="mb-4">
+      {/* Streamable HTTP 连接说明 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            {t("mcpApps.howToConnect")}
+          </CardTitle>
+          <CardDescription>{t("mcpApps.streamableHttpDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm space-y-2">
+            <div>
+              <span className="text-muted-foreground">Endpoint: </span>
+              <code className="bg-muted px-2 py-0.5 rounded">
+                {MCP_ENDPOINT}
+              </code>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Header: </span>
+              <code className="bg-muted px-2 py-0.5 rounded">
+                Authorization: Bearer &lt;MCPR_TOKEN&gt;
+              </code>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 添加 Token */}
+      <Card>
         <CardHeader>
           <CardTitle>{t("mcpApps.addCustomApp")}</CardTitle>
           <CardDescription>{t("mcpApps.customAppDescription")}</CardDescription>
@@ -355,115 +317,74 @@ const McpAppsManager: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Token 列表 */}
       {loading ? (
         <></>
+      ) : apps.length === 0 ? (
+        <div className="text-center text-sm text-muted-foreground py-8">
+          {t("mcpApps.empty")}
+        </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+        <div className="space-y-2">
           {apps.map((app) => {
+            const accessibleCount = Object.values(
+              app.serverAccess || {},
+            ).filter(Boolean).length;
+            const tokenPreview = app.token
+              ? `${app.token.slice(0, 8)}…${app.token.slice(-4)}`
+              : "—";
+
             return (
-              <Card key={app.name} className="overflow-hidden">
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                      {/* Display icon if available from backend */}
-                      {app.icon && (
-                        <div
-                          className="w-6 h-6 flex items-center justify-center"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                          dangerouslySetInnerHTML={{
-                            __html: app.icon.replace(
-                              /<svg/g,
-                              '<svg style="width: 100%; height: 100%; max-width: 24px; max-height: 24px;"',
-                            ),
-                          }}
-                        />
-                      )}
-                      <CardTitle className="truncate max-w-[150px]">
-                        {app.name}
-                      </CardTitle>
+              <Card key={app.name}>
+                <CardContent className="flex items-center justify-between py-4 gap-4">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <IconKey className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{app.name}</div>
+                      <div className="text-xs text-muted-foreground flex gap-3">
+                        <span>
+                          Token: <code>{tokenPreview}</code>
+                        </span>
+                        <span>
+                          {t("mcpApps.accessibleServers")}: {accessibleCount}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex gap-2">{getStatusBadge(app)}</div>
                   </div>
-                  <CardDescription></CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <p className="text-sm break-words">
-                      {app.configured
-                        ? t("mcpApps.configured")
-                        : app.installed
-                          ? t("mcpApps.notConfigured")
-                          : t("mcpApps.installRequired")}
-                    </p>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopyToken(app.token)}
+                      disabled={!app.token}
+                    >
+                      <IconCopy className="h-4 w-4 mr-1" />
+                      {t("mcpApps.copyToken")}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openAccessControlDialog(app)}
+                    >
+                      <IconSettings className="h-4 w-4 mr-1" />
+                      {t("mcpApps.serverAccess")}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => openDeleteDialog(app)}
+                    >
+                      <IconTrash className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
-                <CardFooter className="flex gap-2 justify-between flex-wrap">
-                  <div>
-                    {/* Add How To Use and Delete buttons to the left of the card footer */}
-                    <div className="flex gap-2 flex-wrap">
-                      {app.configured && app.token && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openHowToUseModal(app)}
-                        >
-                          {t("mcpApps.howToUse")}
-                        </Button>
-                      )}
-                      {app.isCustom && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => openDeleteDialog(app)}
-                        >
-                          {t("mcpApps.delete")}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    {!app.configured ? (
-                      <Button
-                        onClick={() => handleAddConfig(app.name)}
-                        variant="default"
-                      >
-                        {app.installed
-                          ? t("mcpApps.addMcpConfig")
-                          : t("mcpApps.notAvailable")}
-                      </Button>
-                    ) : (
-                      <div className="flex gap-2 flex-wrap">
-                        {app.hasOtherServers && (
-                          <Button
-                            onClick={() => handleUnifyConfig(app.name)}
-                            variant="default"
-                            size="sm"
-                          >
-                            {t("mcpApps.unify")}
-                          </Button>
-                        )}
-                        <Button
-                          onClick={() => openAccessControlDialog(app)}
-                          variant="outline"
-                          size="sm"
-                        >
-                          {t("mcpApps.serverAccess")}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardFooter>
               </Card>
             );
           })}
         </div>
       )}
 
-      {/* アクセス制御ダイアログ（サーバーアクセスとトークンスコープを統合） */}
+      {/* 访问控制弹窗 */}
       <Dialog
         open={isAccessControlDialogOpen}
         onOpenChange={setIsAccessControlDialogOpen}
@@ -475,7 +396,6 @@ const McpAppsManager: React.FC = () => {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Replaced Tabs with direct content */}
           <div className="py-4">
             <p className="text-sm text-muted-foreground mb-4">
               {t("mcpApps.selectServers")}
@@ -554,7 +474,7 @@ const McpAppsManager: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* 削除確認ダイアログ */}
+      {/* 删除确认 */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -582,10 +502,6 @@ const McpAppsManager: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <div className="hidden">
-        <HowToUse ref={howToUseRef} token={selectedApp?.token} />
-      </div>
     </div>
   );
 };

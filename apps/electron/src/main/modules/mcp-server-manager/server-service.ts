@@ -41,9 +41,9 @@ export class ServerService extends SingletonService<
   }
 
   /**
-   * サーバ情報を追加する
-   * @param serverConfig サーバ設定情報
-   * @returns 追加されたサーバ情報
+   * 添加服务器信息
+   * @param serverConfig 服务器配置
+   * @returns 已添加的服务器信息
    */
   public addServer(serverConfig: MCPServerConfig): MCPServer {
     try {
@@ -74,40 +74,40 @@ export class ServerService extends SingletonService<
 
       return server;
     } catch (error) {
-      return this.handleError("追加", error);
+      return this.handleError("添加", error);
     }
   }
 
   /**
-   * 全てのサーバ情報を取得する
-   * @returns サーバ情報の配列
+   * 获取所有服务器信息
+   * @returns 服务器信息数组
    */
   public getAllServers(): MCPServer[] {
     try {
       return McpServerManagerRepository.getInstance().getAllServers();
     } catch (error) {
-      return this.handleError("取得", error, []);
+      return this.handleError("获取", error, []);
     }
   }
 
   /**
-   * 指定されたIDのサーバ情報を取得する
-   * @param id サーバID
-   * @returns サーバ情報（存在しない場合はundefined）
+   * 根据 ID 获取服务器信息
+   * @param id 服务器 ID
+   * @returns 服务器信息（不存在时返回 undefined）
    */
   public getServerById(id: string): MCPServer | undefined {
     try {
       return McpServerManagerRepository.getInstance().getServerById(id);
     } catch (error) {
-      return this.handleError(`ID:${id}の取得`, error, undefined);
+      return this.handleError(`获取 ID:${id}`, error, undefined);
     }
   }
 
   /**
-   * サーバ情報を更新する
-   * @param id サーバID
-   * @param config 更新するサーバ設定情報
-   * @returns 更新されたサーバ情報（存在しない場合はundefined）
+   * 更新服务器信息
+   * @param id 服务器 ID
+   * @param config 要更新的服务器配置
+   * @returns 更新后的服务器信息（不存在时返回 undefined）
    */
   public updateServer(
     id: string,
@@ -119,18 +119,18 @@ export class ServerService extends SingletonService<
         config,
       );
       if (result) {
-        logInfo(`サーバ "${result.name}" が更新されました (ID: ${id})`);
+        logInfo(`服务器 "${result.name}" 已更新 (ID: ${id})`);
       }
       return result;
     } catch (error) {
-      return this.handleError(`ID:${id}の更新`, error, undefined);
+      return this.handleError(`更新 ID:${id}`, error, undefined);
     }
   }
 
   /**
-   * サーバ情報を削除する
-   * @param id サーバID
-   * @returns 削除に成功した場合はtrue、失敗した場合はfalse
+   * 删除服务器信息
+   * @param id 服务器 ID
+   * @returns 删除成功返回 true，失败返回 false
    */
   public deleteServer(id: string): boolean {
     try {
@@ -138,18 +138,18 @@ export class ServerService extends SingletonService<
       const result = McpServerManagerRepository.getInstance().deleteServer(id);
 
       if (result && server) {
-        logInfo(`サーバ "${server.name}" が削除されました (ID: ${id})`);
+        logInfo(`服务器 "${server.name}" 已删除 (ID: ${id})`);
       }
 
       return result;
     } catch (error) {
-      return this.handleError(`ID:${id}の削除`, error, false);
+      return this.handleError(`删除 ID:${id}`, error, false);
     }
   }
 }
 
 /**
- * ServerServiceのシングルトンインスタンスを取得
+ * 获取 ServerService 单例实例
  */
 export function getServerService(): ServerService {
   return ServerService.getInstance();

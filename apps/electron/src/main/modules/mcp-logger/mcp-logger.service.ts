@@ -64,19 +64,16 @@ export class McpLoggerService extends SingletonService<
   }
 
   //--------------------------------------------------------------------------------
-  // リクエストログ関連メソッド
+  // 请求日志相关方法
   //--------------------------------------------------------------------------------
 
-  /**
-   * リクエストログを追加
-   */
   public async addRequestLog(
     entry: RequestLogEntryInput,
   ): Promise<RequestLogEntry> {
     try {
       return await McpLoggerRepository.getInstance().addRequestLog(entry);
     } catch (error) {
-      return this.handleError("追加", error);
+      return this.handleError("添加", error);
     }
   }
 
@@ -96,12 +93,12 @@ export class McpLoggerService extends SingletonService<
     if (clientServerName) {
       serverName = clientServerName;
 
-      // サーバ名からIDへの変換を試みる
+      // 尝试将服务器名称转换为 ID
       const serverIdFromName = this.getServerIdByName(clientServerName);
       if (serverIdFromName) {
         serverId = serverIdFromName;
       } else {
-        serverId = clientServerName; // IDが見つからない場合は名前をそのまま使用
+        serverId = clientServerName; // 找不到 ID 时直接使用名称
       }
     }
 
@@ -135,16 +132,13 @@ export class McpLoggerService extends SingletonService<
     });
   }
 
-  /**
-   * リクエストログを取得（カーソルベースページネーション、フィルタリング対応）
-   */
   public async getRequestLogs(
     options: RequestLogQueryOptions = {},
   ): Promise<RequestLogQueryResult> {
     try {
       return await McpLoggerRepository.getInstance().getRequestLogs(options);
     } catch (error) {
-      return this.handleError("取得", error, {
+      return this.handleError("获取", error, {
         logs: [],
         total: 0,
         hasMore: false,
@@ -153,12 +147,8 @@ export class McpLoggerService extends SingletonService<
   }
 }
 
-/**
- * LogServiceのシングルトンインスタンスを取得
- */
 export function getLogService(): McpLoggerService {
   return McpLoggerService.getInstance();
 }
 
-// アプリケーション起動時にインスタンスを初期化
 export const logService = McpLoggerService.getInstance();

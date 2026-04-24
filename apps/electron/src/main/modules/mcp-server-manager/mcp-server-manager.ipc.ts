@@ -1,6 +1,5 @@
 import { ipcMain, dialog, BrowserWindow } from "electron";
 import { MCPServerConfig, CreateServerInput } from "@mcp_router/shared";
-import { processDxtFile } from "@/main/modules/mcp-server-manager/dxt-processor/dxt-processor";
 import type { MCPServerManager } from "@/main/modules/mcp-server-manager/mcp-server-manager";
 
 export function setupMcpServerHandlers(
@@ -30,15 +29,10 @@ export function setupMcpServerHandlers(
     try {
       let serverConfig: MCPServerConfig;
 
-      // Process based on input type
-      if (input.type === "dxt" && input.dxtFile) {
-        // Process DXT file
-        serverConfig = await processDxtFile(input.dxtFile);
-      } else if (input.type === "config" && input.config) {
-        // Use config directly (validation will be done by addServer)
+      if (input.type === "config" && input.config) {
         serverConfig = input.config;
       } else {
-        throw new Error("Invalid input: missing config or dxtFile");
+        throw new Error("Invalid input: missing config");
       }
 
       // Add the server to the manager
@@ -87,7 +81,7 @@ export function setupMcpServerHandlers(
     },
   );
 
-  // ファイル/ディレクトリ選択ダイアログ
+  // 文件/目录选择对话框
   ipcMain.handle(
     "server:selectFile",
     async (

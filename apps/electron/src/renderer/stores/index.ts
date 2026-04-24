@@ -1,65 +1,32 @@
 // Platform-independent stores (no PlatformAPI dependency)
 export * from "./ui-store";
 export * from "./server-editing-store";
-export * from "./workspace-store";
 export * from "./view-preferences-store";
 
 // Platform-dependent store factories
 export * from "./server-store";
-export * from "./auth-store";
 export * from "./project-store";
 export * from "./theme-store";
 
-// Import platform API type
-import type { PlatformAPI } from "@mcp_router/shared";
-
 // Import store factories
 import { createServerStore } from "./server-store";
-import { createAuthStore } from "./auth-store";
 import { createThemeStore, initializeThemeStore } from "./theme-store";
-import { useWorkspaceStore } from "./workspace-store";
+import { electronPlatformAPI } from "../platform-api/electron-platform-api";
 
-// Get the appropriate platform API based on current workspace
-function getPlatformAPI(): PlatformAPI {
-  return useWorkspaceStore.getState().getPlatformAPI();
+function getPlatformAPI() {
+  return electronPlatformAPI;
 }
 
-// Create store instances with dynamic platform API getter
 export const useServerStore = createServerStore(getPlatformAPI);
-export const useAuthStore = createAuthStore(getPlatformAPI);
 export const useThemeStore = createThemeStore(getPlatformAPI);
 
-// Store initialization utility
 export const initializeStores = async () => {
-  // Load current workspace first
-  await useWorkspaceStore.getState().loadCurrentWorkspace();
-
-  // Get platform API from workspace store
-  const platformAPI = getPlatformAPI();
-
-  // Initialize theme from settings
   try {
     await initializeThemeStore(useThemeStore, getPlatformAPI);
   } catch (error) {
     console.error("Failed to initialize theme from settings:", error);
   }
 
-  // Initialize auth state from settings
-  try {
-    const settings = await platformAPI.settings.get();
-    await useAuthStore.getState().initializeFromSettings(settings);
-  } catch (error) {
-    console.error("Failed to initialize auth from settings:", error);
-  }
-
-  // Check current auth status
-  try {
-    await useAuthStore.getState().checkAuthStatus();
-  } catch (error) {
-    console.error("Failed to check auth status:", error);
-  }
-
-  // Load initial server data
   try {
     await useServerStore.getState().refreshServers();
   } catch (error) {

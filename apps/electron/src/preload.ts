@@ -6,29 +6,11 @@ import type {
   CreateServerInput,
   ProjectOptimization,
   TokenServerAccess,
-  CreateSkillInput,
-  UpdateSkillInput,
-  CreateAgentPathInput,
 } from "@mcp_router/shared";
 
 // Consolidate everything into one contextBridge call
 
 contextBridge.exposeInMainWorld("electronAPI", {
-  // Authentication
-  login: (idp?: string) => ipcRenderer.invoke("auth:login", idp),
-  logout: () => ipcRenderer.invoke("auth:logout"),
-  getAuthStatus: (forceRefresh?: boolean) =>
-    ipcRenderer.invoke("auth:status", forceRefresh),
-  handleAuthToken: (token: string, state?: string) =>
-    ipcRenderer.invoke("auth:handle-token", token, state),
-  onAuthStatusChanged: (callback: (status: any) => void) => {
-    const listener = (_: any, status: any) => callback(status);
-    ipcRenderer.on("auth:status-changed", listener);
-    return () => {
-      ipcRenderer.removeListener("auth:status-changed", listener);
-    };
-  },
-
   // MCP Server Management
   listMcpServers: () => ipcRenderer.invoke("mcp:list"),
   startMcpServer: (id: string) => ipcRenderer.invoke("mcp:start", id),
@@ -74,13 +56,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   incrementPackageManagerOverlayCount: () =>
     ipcRenderer.invoke("settings:increment-package-manager-overlay-count"),
 
-  // Cloud Sync
-  getCloudSyncStatus: () => ipcRenderer.invoke("cloud-sync:status"),
-  setCloudSyncEnabled: (enabled: boolean) =>
-    ipcRenderer.invoke("cloud-sync:set-enabled", enabled),
-  setCloudSyncPassphrase: (passphrase: string) =>
-    ipcRenderer.invoke("cloud-sync:set-passphrase", passphrase),
-
   // MCP Apps Management
   listMcpApps: () => ipcRenderer.invoke("mcp-apps:list"),
   addMcpAppConfig: (appName: string) =>
@@ -89,16 +64,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("mcp-apps:delete", appName),
   updateAppServerAccess: (appName: string, serverAccess: TokenServerAccess) =>
     ipcRenderer.invoke("mcp-apps:update-server-access", appName, serverAccess),
-  unifyAppConfig: (appName: string) =>
-    ipcRenderer.invoke("mcp-apps:unify", appName),
 
   // Command check
   checkCommandExists: (command: string) =>
     ipcRenderer.invoke("system:commandExists", command),
-
-  // Feedback
-  submitFeedback: (feedback: string) =>
-    ipcRenderer.invoke("system:submitFeedback", feedback),
 
   // Update Management
   checkForUpdates: () => ipcRenderer.invoke("system:checkForUpdates"),
@@ -127,16 +96,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // System
   getPlatform: () => ipcRenderer.invoke("system:getPlatform"),
-
-  // Workspace Management
-  listWorkspaces: () => ipcRenderer.invoke("workspace:list"),
-  createWorkspace: (config: any) =>
-    ipcRenderer.invoke("workspace:create", config),
-  updateWorkspace: (id: string, updates: any) =>
-    ipcRenderer.invoke("workspace:update", id, updates),
-  deleteWorkspace: (id: string) => ipcRenderer.invoke("workspace:delete", id),
-  switchWorkspace: (id: string) => ipcRenderer.invoke("workspace:switch", id),
-  getCurrentWorkspace: () => ipcRenderer.invoke("workspace:current"),
 
   // Workflow Management
   listWorkflows: () => ipcRenderer.invoke("workflow:list"),
@@ -171,16 +130,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   validateHookScript: (script: string) =>
     ipcRenderer.invoke("hook-module:validate", script),
 
-  getWorkspaceCredentials: (id: string) =>
-    ipcRenderer.invoke("workspace:get-credentials", id),
-  onWorkspaceSwitched: (callback: (workspace: any) => void) => {
-    const listener = (_: any, workspace: any) => callback(workspace);
-    ipcRenderer.on("workspace:switched", listener);
-    return () => {
-      ipcRenderer.removeListener("workspace:switched", listener);
-    };
-  },
-
   // Projects Management
   listProjects: () => ipcRenderer.invoke("project:list"),
   createProject: (input: { name: string }) =>
@@ -190,23 +139,4 @@ contextBridge.exposeInMainWorld("electronAPI", {
     updates: { name?: string; optimization?: ProjectOptimization },
   ) => ipcRenderer.invoke("project:update", id, updates),
   deleteProject: (id: string) => ipcRenderer.invoke("project:delete", id),
-
-  // Skills Management
-  listSkills: () => ipcRenderer.invoke("skill:list"),
-  createSkill: (input: CreateSkillInput) =>
-    ipcRenderer.invoke("skill:create", input),
-  updateSkill: (id: string, updates: UpdateSkillInput) =>
-    ipcRenderer.invoke("skill:update", id, updates),
-  deleteSkill: (id: string) => ipcRenderer.invoke("skill:delete", id),
-  openSkillFolder: (id?: string) => ipcRenderer.invoke("skill:openFolder", id),
-  importSkill: () => ipcRenderer.invoke("skill:import"),
-
-  // Agent Path Management
-  listAgentPaths: () => ipcRenderer.invoke("skill:listAgentPaths"),
-  createAgentPath: (input: CreateAgentPathInput) =>
-    ipcRenderer.invoke("skill:createAgentPath", input),
-  deleteAgentPath: (id: string) =>
-    ipcRenderer.invoke("skill:deleteAgentPath", id),
-  selectAgentPathFolder: () =>
-    ipcRenderer.invoke("skill:selectAgentPathFolder"),
 });

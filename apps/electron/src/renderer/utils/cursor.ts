@@ -1,20 +1,10 @@
 import { CursorData } from "@mcp_router/shared";
 
-/**
- * カーソルのエンコード・デコードユーティリティ
- */
-
-/**
- * カーソルデータをBase64エンコード
- */
 export function encodeCursor(data: CursorData): string {
   const cursorString = `${data.timestamp}:${data.id}`;
   return Buffer.from(cursorString).toString("base64");
 }
 
-/**
- * Base64エンコードされたカーソルをデコード
- */
 export function decodeCursor(cursor: string): CursorData | null {
   try {
     const decoded = Buffer.from(cursor, "base64").toString("utf-8");
@@ -36,14 +26,8 @@ export function decodeCursor(cursor: string): CursorData | null {
   }
 }
 
-/**
- * 空のカーソルを表す定数
- */
 export const EMPTY_CURSOR = "";
 
-/**
- * カーソルが空かどうかを判定
- */
 export function isEmptyCursor(cursor?: string): boolean {
   return !cursor || cursor === EMPTY_CURSOR;
 }

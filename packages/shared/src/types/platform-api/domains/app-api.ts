@@ -26,7 +26,6 @@ export interface AppAPI {
     appName: string,
     serverAccess: TokenServerAccess,
   ): Promise<McpAppsManagerResult>;
-  unifyConfig(appName: string): Promise<McpAppsManagerResult>;
 
   // Token management
   tokens: {

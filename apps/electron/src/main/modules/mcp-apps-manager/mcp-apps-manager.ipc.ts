@@ -3,7 +3,6 @@ import {
   listMcpApps,
   updateAppServerAccess,
   addApp,
-  unifyAppConfig,
   deleteCustomApp,
 } from "./mcp-apps-manager.service";
 import type { TokenServerAccess } from "@mcp_router/shared";
@@ -22,7 +21,7 @@ export function setupMcpAppsHandlers(): void {
     try {
       return await deleteCustomApp(appName);
     } catch (error) {
-      console.error(`Failed to delete custom app ${appName}:`, error);
+      console.error(`Failed to delete app ${appName}:`, error);
       return false;
     }
   });
@@ -31,10 +30,10 @@ export function setupMcpAppsHandlers(): void {
     try {
       return await addApp(appName);
     } catch (error) {
-      console.error(`Failed to add MCP config to ${appName}:`, error);
+      console.error(`Failed to add app ${appName}:`, error);
       return {
         success: false,
-        message: `Error adding MCP configuration to ${appName}: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Error adding app ${appName}: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   });
@@ -53,16 +52,4 @@ export function setupMcpAppsHandlers(): void {
       }
     },
   );
-
-  ipcMain.handle("mcp-apps:unify", async (_, appName: string) => {
-    try {
-      return await unifyAppConfig(appName);
-    } catch (error) {
-      console.error(`Failed to unify config for ${appName}:`, error);
-      return {
-        success: false,
-        message: `Error unifying configuration for ${appName}: ${error instanceof Error ? error.message : String(error)}`,
-      };
-    }
-  });
 }

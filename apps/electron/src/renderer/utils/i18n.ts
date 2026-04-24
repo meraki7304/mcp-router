@@ -2,7 +2,6 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import enTranslation from "../../locales/en.json";
-import jaTranslation from "../../locales/ja.json";
 import zhTranslation from "../../locales/zh.json";
 
 // Initialize i18next
@@ -17,14 +16,12 @@ i18n
       en: {
         translation: enTranslation,
       },
-      ja: {
-        translation: jaTranslation,
-      },
       zh: {
         translation: zhTranslation,
       },
     },
-    fallbackLng: "en",
+    supportedLngs: ["en", "zh"],
+    fallbackLng: "zh",
     // Debug mode in development environment
     debug: process.env.NODE_ENV === "development",
 

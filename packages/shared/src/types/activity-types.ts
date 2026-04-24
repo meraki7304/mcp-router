@@ -1,35 +1,10 @@
 /**
- * Activity Log関連の型定義
- * ToolDiscovery/ToolExecuteのログを可視化するための型
+ * Activity Log 相关类型定义
+ * 用于可视化 ToolDiscovery / ToolExecute 日志
  */
 
 /**
- * ヒートマップのセルデータ
- */
-export interface HeatmapCell {
-  date: string; // YYYY-MM-DD
-  hour: number; // 0-23
-  count: number; // アクティビティ数
-}
-
-/**
- * ヒートマップデータ
- */
-export interface HeatmapData {
-  cells: HeatmapCell[];
-  maxCount: number;
-}
-
-/**
- * Word Cloudの単語データ
- */
-export interface WordCloudItem {
-  text: string;
-  value: number; // 出現頻度
-}
-
-/**
- * アクティビティログの種別
+ * 活动日志种别
  */
 export type ActivityType =
   | "ToolDiscovery"
@@ -73,19 +48,6 @@ export interface ActivityLogEntry {
 
   // ReadResourceの場合
   resourceUri?: string;
-}
-
-/**
- * 日付別のアクティビティサマリー
- */
-export interface DailyActivitySummary {
-  date: string; // YYYY-MM-DD
-  totalCount: number;
-  discoveryCount: number;
-  executeCount: number;
-  successCount: number;
-  errorCount: number;
-  topQueries: WordCloudItem[];
 }
 
 /**

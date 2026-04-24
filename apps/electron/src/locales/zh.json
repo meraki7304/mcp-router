@@ -30,6 +30,20 @@
     "title": "MCP Router"
   },
   "logs": {
+    "activity": {
+      "title": "活动",
+      "log": {
+        "title": "活动日志",
+        "empty": "所选日期没有活动记录",
+        "noContext": "工具搜索",
+        "sessions": "个会话",
+        "executions": "次执行",
+        "noExecutions": "未执行任何工具",
+        "arguments": "参数",
+        "result": "结果",
+        "error": "错误"
+      }
+    },
     "viewer": {
       "refresh": "刷新数据",
       "dateFormat": {
@@ -95,36 +109,31 @@
     "autoUpdateDescription": "自动下载并安装应用更新",
     "showWindowOnStartup": "系统启动时显示主窗口",
     "showWindowOnStartupDescription": "当电脑启动时显示 MCP Router 主窗口。关闭后将在后台启动。",
-    "loadExternalMCPConfigs": "从外部应用程序加载 MCP 配置",
-    "loadExternalMCPConfigsDescription": "允许 MCP Router 从其他应用程序（如 Claude for Desktop）导入服务器配置",
     "analytics": "发送使用情况分析",
     "analyticsDescription": "发送匿名使用数据以帮助改进应用"
   },
   "mcpApps": {
-    "title": "MCP 应用集成",
-    "description": "管理支持的 AI 应用程序的 MCP 配置。",
-    "addCustomApp": "添加自定义应用",
-    "customAppDescription": "创建与 MCP Router 的自定义应用集成。",
-    "enterAppName": "输入自定义应用名称",
-    "configured": "此应用程序已配置 MCP Router。",
-    "notConfigured": "此应用程序未设置 MCP Router 配置。",
-    "installRequired": "安装此应用程序以与 MCP Router 配合使用。",
-    "howToUse": "使用方法",
-    "addMcpConfig": "添加 MCP 配置",
-    "notAvailable": "不可用",
+    "title": "MCP 客户端",
+    "description": "为 MCP 客户端生成访问令牌并配置其可访问的服务器。",
+    "howToConnect": "连接方式",
+    "streamableHttpDesc": "支持 Streamable HTTP 的 MCP 客户端可使用以下地址连接：",
+    "addCustomApp": "添加客户端",
+    "customAppDescription": "输入名称以创建一个新的 MCPR_TOKEN。",
+    "enterAppName": "输入客户端名称",
+    "empty": "暂无客户端。请在上方添加一个。",
     "serverAccess": "访问控制",
-    "selectServers": "选择此应用可以访问的服务器：",
+    "accessibleServers": "可访问服务器数",
+    "copyToken": "复制令牌",
+    "tokenCopied": "令牌已复制到剪贴板",
+    "tokenCopyFailed": "令牌复制失败",
+    "selectServers": "选择此客户端可以访问的服务器：",
     "accessControlSaved": "访问控制设置保存成功",
-    "enterValidName": "请输入有效的应用名称",
-    "notInstalled": "未安装",
-    "installed": "已安装",
-    "multipleConfigs": "多个配置",
-    "unify": "统一",
+    "enterValidName": "请输入有效的客户端名称",
     "delete": "删除",
     "confirmDelete": "确认删除",
-    "deleteWarning": "确定要删除此自定义应用吗？此操作无法撤销。",
-    "deleteSuccess": "应用删除成功",
-    "deleteFailed": "应用删除失败"
+    "deleteWarning": "确定要删除此客户端吗？此操作无法撤销。",
+    "deleteSuccess": "客户端删除成功",
+    "deleteFailed": "客户端删除失败"
   },
   "serverDetails": {
     "serverName": "服务器名称",
@@ -267,32 +276,6 @@
     "errors": {
       "deleteFailed": "工作空间删除失败",
       "switchFailed": "工作空间切换失败"
-    }
-  },
-  "skills": {
-    "title": "技能",
-    "empty": "尚未配置技能",
-    "noResults": "没有匹配的技能",
-    "searchPlaceholder": "搜索技能...",
-    "loadError": "技能加载失败",
-    "createSuccess": "技能创建成功",
-    "createError": "技能创建失败",
-    "deleteSuccess": "技能删除成功",
-    "deleteError": "技能删除失败",
-    "importSuccess": "技能导入成功",
-    "importError": "技能导入失败",
-    "nameRequired": "技能名称为必填项",
-    "openFolder": "打开文件夹",
-    "import": "导入",
-    "new": "新建",
-    "name": "名称",
-    "namePlaceholder": "输入技能名称",
-    "nameHint": "仅使用字母、数字、下划线和连字符",
-    "create": "创建",
-    "selectToEdit": "选择要编辑的技能",
-    "newDialog": {
-      "title": "创建新技能",
-      "description": "输入新技能的名称"
     }
   }
 }

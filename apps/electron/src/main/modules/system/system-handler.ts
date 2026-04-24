@@ -1,49 +1,32 @@
 import { ipcMain, app, autoUpdater } from "electron";
 import { commandExists } from "@/main/utils/env-utils";
-import { API_BASE_URL, mainWindow } from "@/main";
+import { mainWindow } from "@/main";
 
 let isUpdateAvailable = false;
 let isAutoUpdateInProgress = false;
 
-// Set up autoUpdater event listeners
+// 监听 autoUpdater 事件
 autoUpdater.on("update-downloaded", () => {
   isUpdateAvailable = true;
-  // Notify renderer process about available update
+  // 通知渲染进程有可用更新
   if (mainWindow) {
     mainWindow.webContents.send("update:downloaded", true);
   }
 });
 
 export function setupSystemHandlers(): void {
-  // System info and commands
+  // 系统信息与命令
   ipcMain.handle("system:getPlatform", () => {
     return process.platform;
   });
 
-  // Check if a command exists in user shell environment
+  // 检查命令是否存在于用户 shell 环境中
   ipcMain.handle("system:commandExists", async (_, command: string) => {
     const result = await commandExists(command);
     return result;
   });
 
-  // Feedback submission
-  ipcMain.handle("system:submitFeedback", async (_, feedback: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/feedback`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ feedback }),
-      });
-      return response.ok;
-    } catch (error) {
-      console.error("Failed to submit feedback:", error);
-      return false;
-    }
-  });
-
-  // Update management
+  // 更新管理
   ipcMain.handle("system:checkForUpdates", () => {
     return {
       updateAvailable: isUpdateAvailable,
@@ -60,7 +43,7 @@ export function setupSystemHandlers(): void {
     return false;
   });
 
-  // Application restart
+  // 应用重启
   ipcMain.handle("system:restartApp", () => {
     app.quit();
     return true;

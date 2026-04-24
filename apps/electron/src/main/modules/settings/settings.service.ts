@@ -40,20 +40,14 @@ export class SettingsService extends SingletonService<
     (this as any).resetInstanceBase(SettingsService);
   }
 
-  /**
-   * アプリケーション設定を取得
-   */
   public getSettings(): AppSettings {
     try {
       return SettingsRepository.getInstance().getSettings();
     } catch (error) {
-      return this.handleError("設定取得", error);
+      return this.handleError("获取设置", error);
     }
   }
 
-  /**
-   * 全ての設定を一度に保存
-   */
   public saveSettings(settings: AppSettings): boolean {
     try {
       const result = SettingsRepository.getInstance().saveSettings(settings);
@@ -63,21 +57,15 @@ export class SettingsService extends SingletonService<
       }
       return result;
     } catch (error) {
-      return this.handleError("設定保存", error, false);
+      return this.handleError("保存设置", error, false);
     }
   }
 }
 
-/**
- * SettingsServiceのシングルトンインスタンスを取得
- */
 export function getSettingsService(): SettingsService {
   return SettingsService.getInstance();
 }
 
-/**
- * OS起動時のウィンドウ表示設定に応じてログイン項目設定を更新
- */
 export function applyLoginItemSettings(showWindowOnStartup: boolean): void {
   try {
     const loginItemOptions: Electron.Settings = {
@@ -96,9 +84,6 @@ export function applyLoginItemSettings(showWindowOnStartup: boolean): void {
   }
 }
 
-/**
- * 設定のテーマに基づいてネイティブテーマを更新
- */
 export function applyThemeSettings(theme?: Theme): void {
   try {
     nativeTheme.themeSource = theme ?? "system";

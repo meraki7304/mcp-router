@@ -11,15 +11,8 @@ import {
 } from "@mcp_router/shared";
 import { encodeCursor, decodeCursor } from "@/renderer/utils/cursor";
 
-/**
- * リクエストログ用リポジトリクラス
- * BetterSQLite3を使用してリクエストログを管理
- */
 export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
   private static instance: McpLoggerRepository | null = null;
-  /**
-   * テーブル作成SQL
-   */
   private static readonly CREATE_TABLE_SQL = `
     CREATE TABLE IF NOT EXISTS requestLogs (
       id TEXT PRIMARY KEY,
@@ -37,9 +30,6 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
     )
   `;
 
-  /**
-   * インデックス作成SQL
-   */
   private static readonly INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_request_logs_timestamp ON requestLogs(timestamp)",
     "CREATE INDEX IF NOT EXISTS idx_request_logs_client_id ON requestLogs(client_id)",
@@ -48,10 +38,6 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
     "CREATE INDEX IF NOT EXISTS idx_request_logs_response_status ON requestLogs(response_status)",
   ];
 
-  /**
-   * コンストラクタ
-   * @param db SqliteManagerインスタンス
-   */
   private constructor(db: SqliteManager) {
     super(db, "requestLogs");
     console.log(
@@ -60,9 +46,6 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
     );
   }
 
-  /**
-   * シングルトンインスタンスを取得
-   */
   public static getInstance(): McpLoggerRepository {
     const db = getSqliteManager();
     if (
@@ -74,39 +57,28 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
     return McpLoggerRepository.instance;
   }
 
-  /**
-   * インスタンスをリセット
-   */
   public static resetInstance(): void {
     McpLoggerRepository.instance = null;
   }
 
-  /**
-   * テーブルを初期化（BaseRepositoryの抽象メソッドを実装）
-   */
   protected initializeTable(): void {
     try {
-      // テーブルを作成
       this.db.execute(McpLoggerRepository.CREATE_TABLE_SQL);
 
-      // インデックスを作成
       McpLoggerRepository.INDEXES.forEach((indexSQL) => {
         this.db.execute(indexSQL);
       });
 
-      console.log("[LogRepository] テーブルの初期化が完了しました");
+      console.log("[LogRepository] 表初始化完成");
     } catch (error) {
-      console.error("[LogRepository] テーブルの初期化中にエラー:", error);
+      console.error("[LogRepository] 表初始化时发生错误:", error);
       throw error;
     }
   }
 
-  /**
-   * DBの行をエンティティに変換
-   */
   protected mapRowToEntity(row: any): RequestLogEntry {
     try {
-      // 直接JSONパースを行う（暗号化なし）
+      // 直接进行 JSON 解析（无加密）
       let requestParams: any = undefined;
       if (row.request_params) {
         requestParams = JSON.parse(row.request_params);
@@ -119,7 +91,6 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
 
       const errorMessage: string | undefined = row.error_message;
 
-      // エンティティオブジェクトを構築
       return {
         id: row.id,
         timestamp: row.timestamp,
@@ -135,17 +106,14 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
         errorMessage: errorMessage,
       };
     } catch (error) {
-      console.error("ログデータの変換中にエラーが発生しました:", error);
+      console.error("日志数据转换时发生错误:", error);
       throw error;
     }
   }
 
-  /**
-   * エンティティをDBの行に変換
-   */
   protected mapEntityToRow(entity: RequestLogEntry): Record<string, any> {
     try {
-      // JSONシリアライズのみを行う（暗号化なし）
+      // 仅进行 JSON 序列化（无加密）
       const requestParams = entity.requestParams
         ? JSON.stringify(entity.requestParams)
         : null;
@@ -156,7 +124,6 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
 
       const errorMessage = entity.errorMessage || null;
 
-      // DB行オブジェクトを構築
       return {
         id: entity.id,
         timestamp: entity.timestamp,
@@ -172,14 +139,13 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
         error_message: errorMessage,
       };
     } catch (error) {
-      console.error("ログデータの変換中にエラーが発生しました:", error);
+      console.error("日志数据转换时发生错误:", error);
       throw error;
     }
   }
 
   /**
-   * リクエストログを追加
-   * @param entry 追加するログエントリ
+   * @param entry 要添加的日志条目
    */
   public async addRequestLog(
     entry: RequestLogEntryInput,
@@ -187,26 +153,21 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
     try {
       const timestamp = Date.now();
 
-      // 完全なエントリを作成して追加
       const logEntry: RequestLogEntry = {
         ...entry,
-        id: "", // BaseRepository#add()で自動生成される
+        id: "", // 由 BaseRepository#add() 自动生成
         timestamp,
       };
 
-      // リポジトリに追加
       const addedEntry = this.add(logEntry);
 
       return addedEntry;
     } catch (error) {
-      console.error("リクエストログの追加中にエラーが発生しました:", error);
+      console.error("添加请求日志时发生错误:", error);
       throw error;
     }
   }
 
-  /**
-   * リクエストログを検索（カーソルベースページネーション、フィルタリング対応）
-   */
   public async getRequestLogs(
     options: RequestLogQueryOptions = {},
   ): Promise<RequestLogQueryResult> {
@@ -222,16 +183,13 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
         limit = 50,
       } = options;
 
-      // SQLクエリとパラメータを構築
       let sql = `SELECT * FROM ${this.tableName} WHERE 1=1`;
       const params: any = {};
 
-      // カーソルのデコード
       const cursorData = cursor ? decodeCursor(cursor) : null;
       const cursorTimestamp = cursorData?.timestamp || null;
       const cursorId = cursorData?.id || null;
 
-      // カーソル条件を追加
       if (cursorTimestamp && cursorId) {
         sql +=
           " AND (timestamp < :cursorTimestamp OR (timestamp = :cursorTimestamp AND id < :cursorId))";
@@ -239,7 +197,6 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
         params.cursorId = cursorId;
       }
 
-      // フィルタリング条件を追加
       if (clientId) {
         sql += " AND client_id = :clientId";
         params.clientId = clientId;
@@ -260,7 +217,6 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
         params.responseStatus = responseStatus;
       }
 
-      // 時間範囲フィルタリング
       if (startDate) {
         const startTime = startDate.getTime();
         sql += " AND timestamp >= :startTime";
@@ -270,16 +226,15 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
       if (endDate) {
         const endTime = new Date(
           endDate.getTime() + 24 * 60 * 60 * 1000 - 1,
-        ).getTime(); // 終了日の23:59:59
+        ).getTime(); // 结束日期的 23:59:59
         sql += " AND timestamp <= :endTime";
         params.endTime = endTime;
       }
 
-      // 合計カウントクエリ（カーソル条件を除外）
+      // 统计总数（排除游标条件）
       let countSql = sql.replace("SELECT *", "SELECT COUNT(*) as count");
       const countParams = { ...params };
       if (cursorTimestamp && cursorId) {
-        // カーソル条件を除外してカウント
         countSql = countSql.replace(
           / AND \(timestamp < :cursorTimestamp OR \(timestamp = :cursorTimestamp AND id < :cursorId\)\)/,
           "",
@@ -290,23 +245,19 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
       const countResult = this.db.get<{ count: number }>(countSql, countParams);
       const total = countResult?.count || 0;
 
-      // メインクエリにソートとリミットを追加（+1 でhasMoreを判定）
+      // 添加排序和 LIMIT（多取 1 条用于判断 hasMore）
       sql += " ORDER BY timestamp DESC, id DESC LIMIT :limit";
       params.limit = limit + 1;
 
-      // クエリ実行
       const rows = this.db.all<any>(sql, params);
 
-      // hasMoreの判定
       const hasMore = rows.length > limit;
       if (hasMore) {
-        rows.pop(); // 余分な1件を削除
+        rows.pop(); // 删除多取的 1 条
       }
 
-      // 結果をエンティティに変換
       const logs = rows.map((row) => this.mapRowToEntity(row));
 
-      // 次のカーソルを生成
       let nextCursor: string | undefined;
       if (hasMore && logs.length > 0) {
         const lastLog = logs[logs.length - 1];
@@ -318,7 +269,7 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
 
       return { items: logs, logs, total, nextCursor, hasMore };
     } catch (error) {
-      console.error("リクエストログの取得中にエラーが発生しました:", error);
+      console.error("获取请求日志时发生错误:", error);
       return { items: [], logs: [], total: 0, hasMore: false };
     }
   }

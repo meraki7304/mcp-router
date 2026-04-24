@@ -71,16 +71,16 @@ export async function run(cmd: string, args: string[] = [], useShell = false) {
   }
 }
 
-// ユーザのシェルで読み込まれる環境変数を取得する非同期関数
+// 获取用户 shell 加载的环境变量
 export async function getUserShellEnv() {
-  // Windowsの場合、シェル初期化ファイルの問題がないのでそのまま返す
+  // Windows 不存在 shell 初始化文件问题，直接返回当前环境变量
   if (process.platform === "win32") {
     return { ...process.env };
   }
 
   try {
-    // ログインシェル( -l ) + 対話モード( -i )を実行し、envを取得する
-    // `DISABLE_AUTO_UPDATE` は oh-my-zsh の自動アップデートを防ぐための例
+    // 以登录（-l）+ 交互（-i）模式执行 shell 并获取 env；
+    // DISABLE_AUTO_UPDATE 用于抑制 oh-my-zsh 自动更新
     const shell = detectDefaultShell();
     const { stdout } = await execa(
       shell,
@@ -92,9 +92,9 @@ export async function getUserShellEnv() {
       },
     );
 
-    // 出力は '_ENV_DELIMITER_env_vars_ENV_DELIMITER_' の形になるので、区切ってパースする
+    // 输出格式为 '_ENV_DELIMITER_env_vars_ENV_DELIMITER_'，按分隔符截取后解析
     const parts = stdout.split(DELIMITER);
-    const rawEnv = parts[1] || ""; // 区切り文字の間の部分
+    const rawEnv = parts[1] || "";
 
     const shellEnv: { [key: string]: string } = {};
     for (const line of stripAnsi(rawEnv).split("\n")) {
@@ -105,7 +105,7 @@ export async function getUserShellEnv() {
 
     return shellEnv;
   } catch (error) {
-    // シェルの起動に失敗した場合は、Electron / Node.js の既存の環境変数を返す
+    // shell 启动失败时，回退到 Electron / Node.js 的当前环境变量
     return { ...process.env };
   }
 }

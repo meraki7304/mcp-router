@@ -1,13 +1,10 @@
 /**
- * Custom hook to get the platform API based on the current workspace
- * This replaces the context-based approach with a direct store-based approach
+ * 离线客户端固定使用本地 Electron Platform API。
  */
 
-import { useWorkspaceStore } from "@/renderer/stores/workspace-store";
+import { electronPlatformAPI } from "../electron-platform-api";
 import type { PlatformAPI } from "@mcp_router/shared";
 
 export function usePlatformAPI(): PlatformAPI {
-  // Get the platform API directly from the workspace store
-  // This ensures it's always in sync with the current workspace
-  return useWorkspaceStore((state) => state.getPlatformAPI)();
+  return electronPlatformAPI;
 }
