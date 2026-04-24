@@ -1,6 +1,6 @@
 {
   "name": "mcp-router",
-  "version": "0.6.2",
+  "version": "1.0.0",
   "private": true,
   "repository": {
     "type": "git",
@@ -23,11 +23,6 @@
     "postinstall": "electron-rebuild"
   },
   "keywords": [],
-  "author": {
-    "name": "fjm2u",
-    "email": "fm.job@icloud.com"
-  },
-  "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",
     "@eslint/js": "^9.39.4",
