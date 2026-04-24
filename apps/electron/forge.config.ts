@@ -104,7 +104,7 @@ const config: ForgeConfig = {
           owner: "meraki7304",
           name: "mcp-router",
         },
-        prerelease: true,
+        prerelease: false,
         draft: true,
       },
     },
