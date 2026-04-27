@@ -34,11 +34,12 @@ mac:
       arch:
         - x64
         - arm64
-  hardenedRuntime: true
-  gatekeeperAssess: false
+  # 不设 hardenedRuntime / identity / notarize：CI 上没 Apple 签名凭据，
+  # 让 builder 走 unsigned 路径生成 dmg/zip。用户首次打开需在系统设置里允许。
 
 dmg:
-  format: ULFO
+  # UDZO 是最通用兼容的 dmg 格式（macOS 10.6+ 全支持），ULFO 需要更新的 hdiutil 与更窄的兼容范围
+  format: UDZO
 
 win:
   icon: public/images/icon/icon.ico
