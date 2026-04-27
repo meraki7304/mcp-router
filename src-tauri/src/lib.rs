@@ -11,6 +11,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 use crate::{
     commands::ping::ping,
     persistence::registry::{WorkspacePoolRegistry, DEFAULT_WORKSPACE},
+    shared_config::store::SharedConfigStore,
     state::AppState,
 };
 
@@ -29,12 +30,21 @@ pub fn run() {
 
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
+                let shared_config_path = app_data_dir.join("shared-config.json");
+                let shared_config = match SharedConfigStore::open(shared_config_path).await {
+                    Ok(s) => s,
+                    Err(err) => {
+                        error!(?err, "failed to open shared-config.json");
+                        return;
+                    }
+                };
+
                 let registry = WorkspacePoolRegistry::new(app_data_dir);
                 match registry.get_or_init(DEFAULT_WORKSPACE).await {
                     Ok(_) => {
-                        let state = AppState::new(registry);
+                        let state = AppState::new(registry, shared_config);
                         handle.manage(state);
-                        info!("AppState initialized (registry seeded with default workspace)");
+                        info!("AppState initialized (registry + shared_config seeded)");
                     }
                     Err(err) => {
                         error!(?err, "failed to init AppState — default workspace pool failed");
