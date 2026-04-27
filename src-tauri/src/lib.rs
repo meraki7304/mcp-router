@@ -9,7 +9,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 use crate::{
     commands::ping::ping,
-    persistence::pool::init_pool,
+    persistence::registry::{WorkspacePoolRegistry, DEFAULT_WORKSPACE},
     state::AppState,
 };
 
@@ -25,18 +25,18 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .expect("resolve app data dir");
-            let db_path = app_data_dir.join("mcp-router.sqlite");
 
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                match init_pool(&db_path).await {
-                    Ok(pool) => {
-                        let state = AppState::new(pool);
+                let registry = WorkspacePoolRegistry::new(app_data_dir);
+                match registry.get_or_init(DEFAULT_WORKSPACE).await {
+                    Ok(_) => {
+                        let state = AppState::new(registry);
                         handle.manage(state);
-                        info!("AppState initialized");
+                        info!("AppState initialized (registry seeded with default workspace)");
                     }
                     Err(err) => {
-                        error!(?err, "failed to init AppState");
+                        error!(?err, "failed to init AppState — default workspace pool failed");
                     }
                 }
             });

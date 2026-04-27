@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use sqlx::SqlitePool;
+use crate::persistence::registry::WorkspacePoolRegistry;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub pool: Arc<SqlitePool>,
+    pub registry: Arc<WorkspacePoolRegistry>,
 }
 
 impl AppState {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(registry: WorkspacePoolRegistry) -> Self {
         Self {
-            pool: Arc::new(pool),
+            registry: Arc::new(registry),
         }
     }
 }
