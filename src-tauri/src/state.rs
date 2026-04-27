@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
+    mcp::server_manager::ServerManager,
     persistence::registry::WorkspacePoolRegistry,
     shared_config::store::SharedConfigStore,
 };
@@ -9,18 +10,22 @@ use crate::{
 pub struct AppState {
     pub registry: Arc<WorkspacePoolRegistry>,
     pub shared_config: Arc<SharedConfigStore>,
+    pub server_manager: Arc<ServerManager>,
 }
 
 impl AppState {
-    pub fn new(registry: WorkspacePoolRegistry, shared_config: SharedConfigStore) -> Self {
+    pub fn new(
+        registry: Arc<WorkspacePoolRegistry>,
+        shared_config: SharedConfigStore,
+        server_manager: ServerManager,
+    ) -> Self {
         Self {
-            registry: Arc::new(registry),
+            registry,
             shared_config: Arc::new(shared_config),
+            server_manager: Arc::new(server_manager),
         }
     }
 
-    /// Convenience: returns the SqlitePool for the currently-active workspace.
-    /// Plan 5 uses DEFAULT_WORKSPACE; Plan 6+ may evolve this when workspace switching commands land.
     pub async fn pool(&self) -> crate::error::AppResult<sqlx::SqlitePool> {
         self.registry
             .get_or_init(crate::persistence::registry::DEFAULT_WORKSPACE)

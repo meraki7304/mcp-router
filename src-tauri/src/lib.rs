@@ -20,6 +20,9 @@ use crate::{
             projects_create, projects_delete, projects_find_by_name, projects_get, projects_list,
             projects_update,
         },
+        server_runtime::{
+            servers_get_status, servers_list_tools, servers_start, servers_stop,
+        },
         servers::{
             servers_create, servers_delete, servers_find_by_name, servers_get,
             servers_list, servers_list_by_project, servers_update,
@@ -34,6 +37,7 @@ use crate::{
             workflows_list_by_type, workflows_list_enabled, workflows_update,
         },
     },
+    mcp::server_manager::ServerManager,
     persistence::registry::{WorkspacePoolRegistry, DEFAULT_WORKSPACE},
     shared_config::store::SharedConfigStore,
     state::AppState,
@@ -63,17 +67,17 @@ pub fn run() {
                     }
                 };
 
-                let registry = WorkspacePoolRegistry::new(app_data_dir);
-                match registry.get_or_init(DEFAULT_WORKSPACE).await {
-                    Ok(_) => {
-                        let state = AppState::new(registry, shared_config);
-                        handle.manage(state);
-                        info!("AppState initialized (registry + shared_config seeded)");
-                    }
-                    Err(err) => {
-                        error!(?err, "failed to init AppState — default workspace pool failed");
-                    }
+                let registry = std::sync::Arc::new(WorkspacePoolRegistry::new(app_data_dir));
+                if let Err(err) = registry.get_or_init(DEFAULT_WORKSPACE).await {
+                    error!(?err, "failed to seed default workspace pool");
+                    return;
                 }
+
+                let server_manager = ServerManager::new(registry.clone());
+
+                let state = AppState::new(registry, shared_config, server_manager);
+                handle.manage(state);
+                info!("AppState initialized (registry + shared_config + server_manager seeded)");
             });
 
             Ok(())
@@ -101,6 +105,10 @@ pub fn run() {
             servers_create,
             servers_update,
             servers_delete,
+            servers_start,
+            servers_stop,
+            servers_get_status,
+            servers_list_tools,
             logs_query,
             logs_trim,
             workflows_list,
