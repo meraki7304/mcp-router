@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod error;
+pub mod http;
 pub mod mcp;
 pub mod persistence;
 pub mod shared_config;
