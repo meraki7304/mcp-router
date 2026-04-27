@@ -16,6 +16,9 @@ const Settings: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState<boolean>(true);
   const [showWindowOnStartup, setShowWindowOnStartup] = useState<boolean>(true);
+  const [lightweightMode, setLightweightMode] = useState<boolean>(false);
+  const [serverIdleStopMinutes, setServerIdleStopMinutes] =
+    useState<number>(0);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const { theme, setTheme } = useThemeStore();
@@ -37,6 +40,8 @@ const Settings: React.FC = () => {
         const settings = await platformAPI.settings.get();
         setAutoUpdateEnabled(settings.autoUpdateEnabled ?? true);
         setShowWindowOnStartup(settings.showWindowOnStartup ?? true);
+        setLightweightMode(settings.lightweightMode ?? false);
+        setServerIdleStopMinutes(settings.serverIdleStopMinutes ?? 0);
       } catch {
         console.log("Failed to load settings, using defaults");
       }
@@ -73,6 +78,40 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error("Failed to save startup visibility settings:", error);
       setShowWindowOnStartup(!checked);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleLightweightModeToggle = async (checked: boolean) => {
+    setLightweightMode(checked);
+    setIsSavingSettings(true);
+    try {
+      const currentSettings = await platformAPI.settings.get();
+      await platformAPI.settings.save({
+        ...currentSettings,
+        lightweightMode: checked,
+      });
+    } catch (error) {
+      console.error("Failed to save lightweight mode setting:", error);
+      setLightweightMode(!checked);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleIdleStopChange = async (value: string) => {
+    const minutes = Number.parseInt(value, 10) || 0;
+    setServerIdleStopMinutes(minutes);
+    setIsSavingSettings(true);
+    try {
+      const currentSettings = await platformAPI.settings.get();
+      await platformAPI.settings.save({
+        ...currentSettings,
+        serverIdleStopMinutes: minutes,
+      });
+    } catch (error) {
+      console.error("Failed to save server idle stop setting:", error);
     } finally {
       setIsSavingSettings(false);
     }
@@ -164,6 +203,49 @@ const Settings: React.FC = () => {
               onCheckedChange={handleStartupVisibilityToggle}
               disabled={isSavingSettings}
             />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <label className="text-sm font-medium">轻量模式</label>
+              <p className="text-xs text-muted-foreground">
+                关闭主窗口时销毁渲染进程以释放内存（约 100-300 MB），
+                从托盘恢复时再重建窗口。适合长时间后台运行场景。
+              </p>
+            </div>
+            <Switch
+              checked={lightweightMode}
+              onCheckedChange={handleLightweightModeToggle}
+              disabled={isSavingSettings}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <label className="text-sm font-medium">
+                空闲自动停止本地服务器
+              </label>
+              <p className="text-xs text-muted-foreground">
+                指定时间内本地 MCP 服务器无请求时自动停止子进程，
+                下次请求时按需冷启动（约 200-1000ms 延迟）。仅对本地 stdio 服务器生效。
+              </p>
+            </div>
+            <Select
+              value={String(serverIdleStopMinutes)}
+              onValueChange={handleIdleStopChange}
+              disabled={isSavingSettings}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">禁用（保持常驻）</SelectItem>
+                <SelectItem value="5">5 分钟后</SelectItem>
+                <SelectItem value="10">10 分钟后</SelectItem>
+                <SelectItem value="30">30 分钟后</SelectItem>
+                <SelectItem value="60">60 分钟后</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>

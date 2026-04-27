@@ -11,6 +11,7 @@ import { TokenValidator } from "@/main/modules/mcp-server-runtime/token-validato
 import { RequestHandlerBase } from "@/main/modules/mcp-server-runtime/request-handler-base";
 import { getProjectService } from "@/main/modules/projects/projects.service";
 import { ToolCatalogService } from "./tool-catalog.service";
+import type { MCPServerManager } from "@/main/modules/mcp-server-manager/mcp-server-manager";
 
 interface ToolKeyEntry {
   serverId: string;
@@ -75,6 +76,7 @@ type ToolCatalogHandlerDeps = {
   clients: Map<string, Client>;
   serverStatusMap: Map<string, boolean>;
   toolCatalogService: ToolCatalogService;
+  serverManager: MCPServerManager;
 };
 
 /**
@@ -85,6 +87,7 @@ export class ToolCatalogHandler extends RequestHandlerBase {
   private clients: Map<string, Client>;
   private serverStatusMap: Map<string, boolean>;
   private toolCatalogService: ToolCatalogService;
+  private serverManager: MCPServerManager;
   private toolKeyMap: Map<string, ToolKeyEntry> = new Map();
 
   constructor(tokenValidator: TokenValidator, deps: ToolCatalogHandlerDeps) {
@@ -93,6 +96,7 @@ export class ToolCatalogHandler extends RequestHandlerBase {
     this.clients = deps.clients;
     this.serverStatusMap = deps.serverStatusMap;
     this.toolCatalogService = deps.toolCatalogService;
+    this.serverManager = deps.serverManager;
   }
 
   private normalizeProjectId(projectId: unknown): string | null {
@@ -324,6 +328,7 @@ export class ToolCatalogHandler extends RequestHandlerBase {
 
     const toolArguments = args.arguments ?? {};
 
+    this.serverManager.touchServer(serverId);
     return await this.executeWithHooksAndLogging(
       "tools/call",
       { toolKey, toolName, arguments: toolArguments },

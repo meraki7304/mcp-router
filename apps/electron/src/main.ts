@@ -6,6 +6,10 @@ import { MCPHttpServer } from "@/main/modules/mcp-server-runtime/http/mcp-http-s
 import { ToolCatalogService } from "@/main/modules/tool-catalog/tool-catalog.service";
 import { setApplicationMenu } from "@/main/ui/menu";
 import { createTray, updateTrayContextMenu } from "@/main/ui/tray";
+import {
+  McpLoggerRepository,
+  setMaxRequestLogRows,
+} from "@/main/modules/mcp-logger/mcp-logger.repository";
 import { getPlatformAPIManager } from "@/main/modules/workspace/platform-api-manager";
 import { getWorkspaceService } from "@/main/modules/workspace/workspace.service";
 import { getSharedConfigManager } from "@/main/infrastructure/shared-config-manager";
@@ -159,19 +163,35 @@ const createWindow = ({ showOnCreate = true }: CreateWindowOptions = {}) => {
     return { action: "deny" };
   });
 
-  // Handle window close event - hide instead of closing completely
+  // Handle window close event
   mainWindow.on("close", (event) => {
     // If app.quit() was called explicitly (from tray menu) or auto-update is in progress, don't prevent the window from closing
     if (isQuitting || getIsAutoUpdateInProgress()) return;
 
-    // Otherwise prevent the window from closing by default
+    // 默认行为：仅隐藏，保留 renderer 进程以便秒开。
+    // 轻量模式：销毁窗口与 webContents，释放渲染进程内存（~100-300 MB），
+    // 下次从托盘恢复时通过 ensureMainWindow() 重建。
+    let useLightweight = false;
+    try {
+      useLightweight =
+        getSettingsService().getSettings().lightweightMode ?? false;
+    } catch {
+      // settings 不可用（极早期路径）走默认隐藏
+    }
+
+    if (useLightweight) {
+      // 走默认 close 流程，让 BrowserWindow 自然销毁；closed 事件会把 mainWindow 置 null
+      if (process.platform === "darwin" && app.dock) {
+        app.dock.hide();
+      }
+      return;
+    }
+
     event.preventDefault();
 
     if (mainWindow) {
-      // Just hide the window instead of closing it
       mainWindow.hide();
 
-      // Hide the app from the Dock on macOS when window is closed
       if (process.platform === "darwin" && app.dock) {
         app.dock.hide();
       }
@@ -268,6 +288,45 @@ function initUI({
   setupTrayUpdateTimer(serverManager);
 }
 
+/**
+ * 把当前 settings 中的 serverIdleStopMinutes 应用到 serverManager。
+ * 启动时与用户保存设置时各调用一次，让闲置子进程回收设置即时生效。
+ */
+export function applyServerIdleStopMinutes(minutes: number): void {
+  if (!serverManager) return;
+  serverManager.setIdleStopMinutes(minutes);
+}
+
+/**
+ * 把当前 settings 中的 maxRequestLogRows 应用到日志模块。
+ */
+export function applyMaxRequestLogRows(maxRows: number): void {
+  setMaxRequestLogRows(maxRows);
+}
+
+/**
+ * 确保主窗口存在并显示出来。轻量模式 destroy 后从托盘点回时调用。
+ * 重建后会重新绑定 PlatformAPIManager 的窗口引用。
+ */
+export function ensureMainWindow(): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    return;
+  }
+
+  createWindow({ showOnCreate: true });
+
+  if (mainWindow) {
+    getPlatformAPIManager().setMainWindow(mainWindow);
+  }
+
+  if (process.platform === "darwin" && app.dock) {
+    app.dock.show();
+  }
+}
+
 async function initApplication(): Promise<void> {
   initializeEnvironment();
   const DEV_CSP = `
@@ -325,6 +384,28 @@ async function initApplication(): Promise<void> {
     (!launchedAtLogin || showWindowOnStartup) && !launchedWithHiddenFlag;
 
   initUI({ showMainWindow: shouldShowMainWindow });
+
+  // 启动时把闲置自动停止 / 日志保留上限应用到对应模块
+  try {
+    const persistedSettings = getSettingsService().getSettings();
+    serverManager.setIdleStopMinutes(
+      persistedSettings.serverIdleStopMinutes ?? 0,
+    );
+    const maxRows = persistedSettings.maxRequestLogRows ?? 50000;
+    setMaxRequestLogRows(maxRows);
+    try {
+      const trimmed = McpLoggerRepository.getInstance().trimToMaxRows(maxRows);
+      if (trimmed > 0) {
+        console.log(
+          `[startup] Trimmed ${trimmed} old request log rows (cap=${maxRows})`,
+        );
+      }
+    } catch (error) {
+      console.error("Failed to trim request logs on startup:", error);
+    }
+  } catch (error) {
+    console.error("Failed to apply lightweight settings on startup:", error);
+  }
 
   // 启动后非阻塞地拉起自动更新检查，未签名 / 无网络 / dev 模式都会被静默跳过
   setupAutoUpdate();

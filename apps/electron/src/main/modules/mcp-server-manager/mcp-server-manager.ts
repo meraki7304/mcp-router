@@ -26,6 +26,13 @@ export class MCPServerManager {
   private serverService!: ServerService;
   private eventEmitter = new EventEmitter();
 
+  // 闲置自动停止：记录每个 server 最后一次活动时间戳（Date.now()），
+  // idleStopMinutes > 0 时定时扫描，超时未活动的 stdio server 会被自动停止。
+  private lastUsedAt: Map<string, number> = new Map();
+  private idleStopMinutes = 0;
+  private idleCheckTimer: NodeJS.Timeout | null = null;
+  private static readonly IDLE_CHECK_INTERVAL_MS = 60_000;
+
   constructor() {
     this.serversDir = path.join(app.getPath("userData"), "mcp-servers");
     if (!fs.existsSync(this.serversDir)) {
@@ -282,6 +289,7 @@ export class MCPServerManager {
     }
 
     this.clients.set(id, result.client);
+    this.lastUsedAt.set(id, Date.now());
     server.status = "running";
     server.errorMessage = undefined;
 
@@ -351,6 +359,7 @@ export class MCPServerManager {
       // Disconnect the client
       client.close();
       this.clients.delete(id);
+      this.lastUsedAt.delete(id);
       server.status = "stopped";
       this.eventEmitter.emit("server-stopped", id);
       return true;
@@ -444,6 +453,7 @@ export class MCPServerManager {
       throw new Error("Server must be running to list tools");
     }
 
+    this.touchServer(id);
     const response = await client.listTools();
     const tools = response?.tools ?? [];
     const permissions = server.toolPermissions || {};
@@ -527,9 +537,85 @@ export class MCPServerManager {
    * Shutdown all servers
    */
   public async shutdown(): Promise<void> {
+    if (this.idleCheckTimer) {
+      clearInterval(this.idleCheckTimer);
+      this.idleCheckTimer = null;
+    }
+    this.eventEmitter.removeAllListeners();
     for (const [id] of this.clients) {
       // Don't persist state changes when shutting down - this is just cleanup
       this.stopServer(id, undefined, false);
+    }
+  }
+
+  /**
+   * 配置闲置自动停止的分钟阈值。0 表示禁用。
+   */
+  public setIdleStopMinutes(minutes: number): void {
+    const next = Math.max(0, Math.floor(minutes));
+    if (this.idleStopMinutes === next) {
+      return;
+    }
+    this.idleStopMinutes = next;
+    if (this.idleCheckTimer) {
+      clearInterval(this.idleCheckTimer);
+      this.idleCheckTimer = null;
+    }
+    if (next > 0) {
+      this.idleCheckTimer = setInterval(
+        () => this.runIdleCheck(),
+        MCPServerManager.IDLE_CHECK_INTERVAL_MS,
+      );
+    }
+  }
+
+  /**
+   * 标记某个 server 刚有活动（list/call 等请求经过）。
+   * 调用方：request-handlers 与 tool-catalog-handler 在拿 client 后调用。
+   */
+  public touchServer(id: string): void {
+    if (this.idleStopMinutes <= 0) return;
+    if (!this.clients.has(id)) return;
+    this.lastUsedAt.set(id, Date.now());
+  }
+
+  /**
+   * 当前活动状态快照，仅用于诊断。
+   */
+  public getActivitySnapshot(): Array<{ id: string; lastUsedAt: number }> {
+    return Array.from(this.lastUsedAt.entries()).map(([id, lastUsedAt]) => ({
+      id,
+      lastUsedAt,
+    }));
+  }
+
+  private runIdleCheck(): void {
+    if (this.idleStopMinutes <= 0) return;
+    const thresholdMs = this.idleStopMinutes * 60_000;
+    const now = Date.now();
+
+    for (const [id] of this.clients) {
+      const server = this.servers.get(id);
+      // 仅回收本地 stdio server；远程连接保持，因为它们对资源占用影响小
+      if (!server || server.serverType !== "local") {
+        continue;
+      }
+      const last = this.lastUsedAt.get(id) ?? now;
+      if (now - last >= thresholdMs) {
+        try {
+          // persist=false：闲置回收不应改 autoStart 配置
+          this.stopServer(id, undefined, false);
+          this.lastUsedAt.delete(id);
+          console.log(
+            `[MCPServerManager] Idle-stopped local server ${server.name} (${id}) after ${this.idleStopMinutes}min`,
+          );
+        } catch (error) {
+          console.error(
+            `[MCPServerManager] Failed to idle-stop server ${id}:`,
+            error,
+          );
+        }
+      }
     }
   }
 }

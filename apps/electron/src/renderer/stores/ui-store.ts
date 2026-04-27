@@ -34,6 +34,8 @@ interface UIStoreState extends UIState {
   showConfirmDialog: (title: string, content: string) => Promise<boolean>;
 }
 
+const toastTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 export const useUIStore = create<UIStoreState>((set, get) => ({
   // Initial state
   globalLoading: false,
@@ -53,24 +55,47 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
     const id = `toast-${Date.now()}-${Math.random()}`;
     const toast: ToastMessage = { id, message, type, duration };
 
-    set((state) => ({
-      toasts: [...state.toasts, toast],
-    }));
+    set((state) => {
+      const next = [...state.toasts, toast];
+      // Cap at 5 toasts; drop oldest, also cancel its timer
+      while (next.length > 5) {
+        const dropped = next.shift();
+        if (dropped) {
+          const t = toastTimers.get(dropped.id);
+          if (t) {
+            clearTimeout(t);
+            toastTimers.delete(dropped.id);
+          }
+        }
+      }
+      return { toasts: next };
+    });
 
-    // Auto-remove toast after duration
     if (duration > 0) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        toastTimers.delete(id);
         get().removeToast(id);
       }, duration);
+      toastTimers.set(id, timer);
     }
   },
 
-  removeToast: (id) =>
+  removeToast: (id) => {
+    const timer = toastTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      toastTimers.delete(id);
+    }
     set((state) => ({
       toasts: state.toasts.filter((toast) => toast.id !== id),
-    })),
+    }));
+  },
 
-  clearToasts: () => set({ toasts: [] }),
+  clearToasts: () => {
+    toastTimers.forEach((timer) => clearTimeout(timer));
+    toastTimers.clear();
+    set({ toasts: [] });
+  },
 
   // Dialog actions
   openDialog: (config) =>

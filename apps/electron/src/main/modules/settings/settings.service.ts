@@ -54,6 +54,18 @@ export class SettingsService extends SingletonService<
       if (result) {
         applyLoginItemSettings(settings.showWindowOnStartup ?? true);
         applyThemeSettings(settings.theme);
+        // 通过动态 import 让设置即时生效，避免与 main.ts 形成顶层循环依赖
+        import("../../../main")
+          .then((mod) => {
+            mod.applyServerIdleStopMinutes(settings.serverIdleStopMinutes ?? 0);
+            mod.applyMaxRequestLogRows(settings.maxRequestLogRows ?? 50000);
+          })
+          .catch((err) =>
+            console.error(
+              "Failed to apply runtime settings after save:",
+              err,
+            ),
+          );
       }
       return result;
     } catch (error) {

@@ -1,6 +1,6 @@
 import { app, Menu, Tray, nativeImage, type NativeImage } from "electron";
 import { MCPServerManager } from "@/main/modules/mcp-server-manager/mcp-server-manager";
-import { mainWindow } from "../../main";
+import { ensureMainWindow } from "../../main";
 
 // Global tray instance
 let tray: Tray | null = null;
@@ -53,17 +53,7 @@ export function createTray(serverManager: MCPServerManager): Tray | null {
     // On macOS, single-click will show the context menu
     // and double-click opens the main window
     tray.on("double-click", () => {
-      if (app.dock) {
-        app.dock.show();
-      }
-
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.show();
-        mainWindow.focus();
-      } else {
-        createOrShowMainWindow();
-      }
+      ensureMainWindow();
     });
 
     // Single-click shows context menu on macOS
@@ -105,12 +95,7 @@ export function updateTrayContextMenu(serverManager: MCPServerManager): void {
     {
       label: "MCP Router",
       click: () => {
-        // Show the app in the Dock on macOS when clicked from context menu
-        if (process.platform === "darwin" && app.dock) {
-          app.dock.show();
-        }
-
-        createOrShowMainWindow();
+        ensureMainWindow();
       },
     },
     { type: "separator" as const },
@@ -132,17 +117,3 @@ export function updateTrayContextMenu(serverManager: MCPServerManager): void {
   tray.setContextMenu(contextMenu);
 }
 
-/**
- * Helper function to create or show the main window
- */
-function createOrShowMainWindow(): void {
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.show();
-    mainWindow.focus();
-  } else {
-    // We need to rely on the caller to create a new window if one doesn't exist
-    // as we don't have access to the createWindow function here
-    console.log("No main window found to show");
-  }
-}

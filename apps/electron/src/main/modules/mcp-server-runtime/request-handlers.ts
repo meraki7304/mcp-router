@@ -28,6 +28,7 @@ export class RequestHandlers extends RequestHandlerBase {
   private serverNameToIdMap: Map<string, string>;
   private toolCatalogService: ToolCatalogService;
   private toolCatalogHandler: ToolCatalogHandler;
+  private serverManager: MCPServerManager;
 
   constructor(
     serverManager: MCPServerManager,
@@ -42,6 +43,7 @@ export class RequestHandlers extends RequestHandlerBase {
     this.clients = maps.clients;
     this.serverNameToIdMap = maps.serverNameToIdMap;
     this.serverStatusMap = maps.serverStatusMap;
+    this.serverManager = serverManager;
     this.toolCatalogService =
       toolCatalogService || new ToolCatalogService(serverManager);
 
@@ -51,6 +53,7 @@ export class RequestHandlers extends RequestHandlerBase {
       clients: this.clients,
       serverStatusMap: this.serverStatusMap,
       toolCatalogService: this.toolCatalogService,
+      serverManager: this.serverManager,
     });
   }
 
@@ -205,6 +208,7 @@ export class RequestHandlers extends RequestHandlerBase {
       }
 
       try {
+        this.serverManager.touchServer(serverId);
         const resources = await client.listResources();
 
         if (!resources.resources || resources.resources.length === 0) {
@@ -283,6 +287,7 @@ export class RequestHandlers extends RequestHandlerBase {
           }
 
           try {
+            this.serverManager.touchServer(serverId);
             const templates = await client.listResourceTemplates();
 
             if (
@@ -376,6 +381,7 @@ export class RequestHandlers extends RequestHandlerBase {
       );
     }
 
+    this.serverManager.touchServer(serverId);
     return this.executeWithHooksAndLogging(
       "resources/read",
       { uri },
@@ -453,6 +459,7 @@ export class RequestHandlers extends RequestHandlerBase {
       }
 
       try {
+        this.serverManager.touchServer(serverId);
         const prompts = await client.listPrompts();
 
         if (!prompts.prompts || prompts.prompts.length === 0) {
@@ -541,6 +548,7 @@ export class RequestHandlers extends RequestHandlerBase {
       );
     }
 
+    this.serverManager.touchServer(serverId);
     return this.executeWithHooksAndLogging(
       "prompts/get",
       { name, arguments: promptArgs },
@@ -596,6 +604,7 @@ export class RequestHandlers extends RequestHandlerBase {
       }
 
       try {
+        this.serverManager.touchServer(serverId);
         const tools = await client.listTools();
 
         if (!tools.tools || tools.tools.length === 0) {
@@ -721,6 +730,7 @@ export class RequestHandlers extends RequestHandlerBase {
       );
     }
 
+    this.serverManager.touchServer(serverId);
     return this.executeWithHooksAndLogging(
       "tools/call",
       request.params,

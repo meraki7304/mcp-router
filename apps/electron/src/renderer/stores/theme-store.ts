@@ -59,6 +59,8 @@ function applyTheme(theme: Theme) {
   }
 }
 
+let mediaQueryCleanup: (() => void) | null = null;
+
 export function initializeThemeStore(
   useThemeStore: UseBoundStore<StoreApi<ThemeStoreState>>,
   getPlatformAPI: () => PlatformAPI,
@@ -82,12 +84,15 @@ export function initializeThemeStore(
     );
   }
 
-  // Listen for system theme changes while in "system" mode
+  mediaQueryCleanup?.();
+
   const media = window.matchMedia("(prefers-color-scheme: dark)");
-  media.addEventListener("change", () => {
+  const onChange = () => {
     const currentTheme = useThemeStore.getState().theme;
     if (currentTheme === "system") {
       applyTheme("system");
     }
-  });
+  };
+  media.addEventListener("change", onChange);
+  mediaQueryCleanup = () => media.removeEventListener("change", onChange);
 }

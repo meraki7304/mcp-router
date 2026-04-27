@@ -11,8 +11,22 @@ import {
 } from "@mcp_router/shared";
 import { encodeCursor, decodeCursor } from "@/renderer/utils/cursor";
 
+// 动态 retention 上限：main.ts 启动时与设置保存时同步。
+// 0 或负值表示禁用裁剪。模块级变量避免与 settings.service 形成循环依赖。
+let dynamicMaxRequestLogRows = 50000;
+
+export function setMaxRequestLogRows(maxRows: number): void {
+  dynamicMaxRequestLogRows = Number.isFinite(maxRows) ? Math.floor(maxRows) : 0;
+}
+
+function getCurrentMaxRequestLogRows(): number {
+  return dynamicMaxRequestLogRows;
+}
+
 export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
   private static instance: McpLoggerRepository | null = null;
+  private writeSinceTrim = 0;
+  private static readonly TRIM_BATCH_INTERVAL = 100;
   private static readonly CREATE_TABLE_SQL = `
     CREATE TABLE IF NOT EXISTS requestLogs (
       id TEXT PRIMARY KEY,
@@ -161,10 +175,42 @@ export class McpLoggerRepository extends BaseRepository<RequestLogEntry> {
 
       const addedEntry = this.add(logEntry);
 
+      // 每写入 N 次触发一次 retention 裁剪，避免每写都扫表
+      this.writeSinceTrim += 1;
+      if (this.writeSinceTrim >= McpLoggerRepository.TRIM_BATCH_INTERVAL) {
+        this.writeSinceTrim = 0;
+        try {
+          this.trimToMaxRows(getCurrentMaxRequestLogRows());
+        } catch (trimError) {
+          console.error("[LogRepository] retention 裁剪失败:", trimError);
+        }
+      }
+
       return addedEntry;
     } catch (error) {
       console.error("添加请求日志时发生错误:", error);
       throw error;
+    }
+  }
+
+  /**
+   * 把 requestLogs 表裁剪到最多 maxRows 条最新记录。
+   * 总数 <= maxRows 时不执行删除。maxRows <= 0 视为无限制。
+   */
+  public trimToMaxRows(maxRows: number): number {
+    if (!maxRows || maxRows <= 0) return 0;
+    try {
+      const result = this.db.execute(
+        `DELETE FROM ${this.tableName} WHERE timestamp < (
+           SELECT timestamp FROM ${this.tableName}
+           ORDER BY timestamp DESC LIMIT 1 OFFSET :maxRows
+         )`,
+        { maxRows },
+      );
+      return result?.changes ?? 0;
+    } catch (error) {
+      console.error("[LogRepository] trimToMaxRows 失败:", error);
+      return 0;
     }
   }
 

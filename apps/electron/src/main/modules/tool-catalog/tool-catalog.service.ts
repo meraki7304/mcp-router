@@ -116,6 +116,7 @@ export class ToolCatalogService {
       const permissions = server.toolPermissions || {};
 
       try {
+        this.serverManager.touchServer(serverId);
         const toolResponse = await client.listTools();
         const toolList = toolResponse?.tools ?? [];
 

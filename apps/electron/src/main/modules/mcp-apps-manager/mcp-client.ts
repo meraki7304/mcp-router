@@ -18,6 +18,11 @@ export class MCPClient {
     server: MCPServerConfig,
     clientName = "mcp-client",
   ): Promise<MCPConnectionResult> {
+    let transport:
+      | StdioClientTransport
+      | SSEClientTransport
+      | StreamableHTTPClientTransport
+      | undefined;
     try {
       // Create MCP client
       const client = new Client({
@@ -35,7 +40,7 @@ export class MCPClient {
         }
 
         // Use StreamableHTTP transport for remote-streamable servers
-        const transport = new StreamableHTTPClientTransport(
+        transport = new StreamableHTTPClientTransport(
           new URL(server.remoteUrl),
           {
             sessionId: undefined,
@@ -66,7 +71,7 @@ export class MCPClient {
           headers["authorization"] = `Bearer ${server.bearerToken}`;
         }
 
-        const transport = new SSEClientTransport(new URL(server.remoteUrl), {
+        transport = new SSEClientTransport(new URL(server.remoteUrl), {
           eventSourceInit: {
             fetch: (url, init) => fetch(url, { ...init, headers }),
           },
@@ -104,7 +109,7 @@ export class MCPClient {
         };
 
         // Use Stdio transport for local servers
-        const transport = new StdioClientTransport({
+        transport = new StdioClientTransport({
           command: server.command,
           args: server.args,
           env: mergedEnv,
@@ -122,6 +127,15 @@ export class MCPClient {
         client,
       };
     } catch (error) {
+      // Best-effort cleanup: ensure spawned subprocess / sockets are released
+      // even when client.connect() throws partway through.
+      if (transport) {
+        try {
+          await transport.close();
+        } catch (closeError) {
+          logError(`Failed to close transport after connect error: ${closeError}`);
+        }
+      }
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       logError(`Failed to connect to MCP server: ${errorMessage}`);
