@@ -11,12 +11,14 @@
         "**/dist/**",
         "**/out/**",
         "**/.turbo/**",
-        "**/.webpack/**",
         "**/coverage/**",
         "**/build/**",
         "**/.next/**",
         "**/node_modules/**",
         "**/*.min.js"
+      ],
+      "ignoreBinaries": [
+        "electron-builder"
       ]
     },
     "apps/electron": {
@@ -24,11 +26,7 @@
         "src/main.ts",
         "src/renderer.tsx",
         "src/preload.ts",
-        "forge.config.ts",
-        "webpack.main.config.ts",
-        "webpack.renderer.config.ts",
-        "webpack.plugins.ts",
-        "webpack.rules.ts"
+        "electron.vite.config.ts"
       ],
       "project": [
         "src/**/*.{ts,tsx,js,jsx}"
@@ -38,23 +36,13 @@
         "**/dist/**",
         "**/out/**",
         "**/.turbo/**",
-        "**/.webpack/**",
         "**/coverage/**",
         "**/build/**",
         "**/node_modules/**",
         "**/*.min.js"
       ],
-      "ignoreDependencies": [
-        "@electron-forge/publisher-github",
-        "@types/webpack",
-        "@vercel/webpack-asset-relocator-loader",
-        "css-loader",
-        "html-webpack-plugin",
-        "node-loader",
-        "postcss-loader",
-        "style-loader",
-        "ts-loader",
-        "ts-node"
+      "ignoreBinaries": [
+        "electron-rebuild"
       ]
     },
     "packages/shared": {

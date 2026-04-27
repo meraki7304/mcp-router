@@ -25,9 +25,6 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "knip": "cd ../.. && knip --workspace apps/electron",
-    "rebuild": "electron-rebuild",
-    "rebuild:x64": "cross-env npm_config_target_arch=x64 npm_config_arch=x64 electron-rebuild --arch=x64",
-    "rebuild:arm64": "cross-env npm_config_target_arch=arm64 npm_config_arch=arm64 electron-rebuild --arch=arm64",
     "test:e2e": "pnpm make && playwright test --config=e2e/playwright-electron.config.ts",
     "test:e2e:only": "playwright test --config=e2e/playwright-electron.config.ts",
     "test:e2e:headed": "pnpm make && playwright test --config=e2e/playwright-electron.config.ts --headed"
@@ -50,7 +47,6 @@
     "@codemirror/state": "^6.6.0",
     "@codemirror/theme-one-dark": "^6.1.3",
     "@codemirror/view": "^6.41.1",
-    "@electron/fuses": "^2.1.1",
     "@mcp_router/tailwind-config": "workspace:*",
     "@mcp_router/ui": "workspace:*",
     "@playwright/test": "^1.59.1",
