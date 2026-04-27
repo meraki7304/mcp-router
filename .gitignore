@@ -53,6 +53,12 @@ tsconfig.tsbuildinfo
 /apps/electron/dist/
 .webpack/
 
+# Rust
+src-tauri/target/
+
+# sqlx prepared queries are committed, but cache isn't
+src-tauri/.sqlx-cache/
+
 # IDE
 .vscode/
 .idea/
