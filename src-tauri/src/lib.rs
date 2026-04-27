@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod error;
 pub mod persistence;
+pub mod shared_config;
 pub mod state;
 
 use tauri::{Manager, RunEvent};
