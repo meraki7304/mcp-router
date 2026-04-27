@@ -1,10 +1,8 @@
 name: Make Build
 
+# 只手动触发（GitHub UI → Actions → Make Build → Run workflow）。
+# 正式发布走 release.yml（tag v* 触发），平常 push 不消耗 CI 时长。
 on:
-  push:
-    branches:
-      - main
-      - release
   workflow_dispatch:
 
 jobs:
