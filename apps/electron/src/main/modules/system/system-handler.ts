@@ -27,11 +27,62 @@ export function setupSystemHandlers(): void {
     return result;
   });
 
-  // 更新管理
-  ipcMain.handle("system:checkForUpdates", () => {
-    return {
-      updateAvailable: isUpdateAvailable,
-    };
+  // 更新管理：手动触发一次 autoUpdater.checkForUpdates 并返回当前状态
+  ipcMain.handle("system:checkForUpdates", async () => {
+    const currentVersion = app.getVersion();
+
+    // 未打包（dev 模式）下 autoUpdater 不会真的工作
+    if (!app.isPackaged) {
+      return {
+        updateAvailable: false,
+        status: "skipped" as const,
+        currentVersion,
+        error: "开发模式不支持检查更新",
+      };
+    }
+
+    // 已经检测到更新且下载完成，等待用户重启
+    if (isUpdateAvailable) {
+      return {
+        updateAvailable: true,
+        status: "downloaded" as const,
+        currentVersion,
+      };
+    }
+
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      const latest = result?.updateInfo?.version;
+      if (!latest || latest === currentVersion) {
+        return {
+          updateAvailable: false,
+          status: "no-update" as const,
+          currentVersion,
+          latestVersion: latest,
+        };
+      }
+      const releaseNotes =
+        typeof result?.updateInfo?.releaseNotes === "string"
+          ? result.updateInfo.releaseNotes
+          : undefined;
+      // autoDownload=true 时 checkForUpdates 已经在后台开始下载，
+      // 完成后会触发 update-downloaded 事件，UI 通过 onUpdateAvailable 收到通知
+      return {
+        updateAvailable: false,
+        status: "downloading" as const,
+        currentVersion,
+        latestVersion: latest,
+        releaseNotes,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        updateAvailable: isUpdateAvailable,
+        status: "error" as const,
+        currentVersion,
+        error: message,
+      };
+    }
   });
 
   ipcMain.handle("system:installUpdate", () => {

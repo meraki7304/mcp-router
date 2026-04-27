@@ -85,7 +85,14 @@ declare global {
       }>;
 
       // Update Management
-      checkForUpdates: () => Promise<{ updateAvailable: boolean }>;
+      checkForUpdates: () => Promise<{
+        updateAvailable: boolean;
+        status: "no-update" | "downloading" | "downloaded" | "error" | "skipped";
+        currentVersion: string;
+        latestVersion?: string;
+        releaseNotes?: string;
+        error?: string;
+      }>;
       installUpdate: () => Promise<boolean>;
       onUpdateAvailable: (callback: (available: boolean) => void) => () => void;
 

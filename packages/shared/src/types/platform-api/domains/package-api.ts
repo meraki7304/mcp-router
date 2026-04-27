@@ -36,10 +36,26 @@ interface InstallResult {
   };
 }
 
+type UpdateCheckStatus =
+  | "no-update"
+  | "downloading"
+  | "downloaded"
+  | "error"
+  | "skipped";
+
 interface UpdateInfo {
+  /** 是否有已下载完成、等待重启安装的更新 */
   updateAvailable: boolean;
-  version?: string;
+  /** 本次检查的结果状态 */
+  status: UpdateCheckStatus;
+  /** 当前运行的应用版本 */
+  currentVersion: string;
+  /** 远端发现的最新版本（与当前一致或检查失败时可能为空） */
+  latestVersion?: string;
+  /** 发现的更新发布说明（若 release 提供） */
   releaseNotes?: string;
+  /** 检查失败 / skipped 时的提示信息 */
+  error?: string;
 }
 
 export interface PackageAPI {

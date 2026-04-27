@@ -9,8 +9,25 @@ import {
   SelectValue,
 } from "@mcp_router/ui";
 import { Switch } from "@mcp_router/ui";
+import { Button } from "@mcp_router/ui";
 import { useThemeStore } from "@/renderer/stores";
 import { electronPlatformAPI as platformAPI } from "../../platform-api/electron-platform-api";
+
+type UpdateUiState =
+  | { kind: "idle"; currentVersion?: string }
+  | { kind: "checking" }
+  | { kind: "no-update"; currentVersion: string }
+  | {
+      kind: "downloading";
+      currentVersion: string;
+      latestVersion: string;
+    }
+  | {
+      kind: "downloaded";
+      currentVersion: string;
+    }
+  | { kind: "error"; message: string; currentVersion?: string }
+  | { kind: "skipped"; message: string; currentVersion: string };
 
 const Settings: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -20,6 +37,7 @@ const Settings: React.FC = () => {
   const [serverIdleStopMinutes, setServerIdleStopMinutes] =
     useState<number>(0);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [updateUi, setUpdateUi] = useState<UpdateUiState>({ kind: "idle" });
 
   const { theme, setTheme } = useThemeStore();
 
@@ -98,6 +116,114 @@ const Settings: React.FC = () => {
     } finally {
       setIsSavingSettings(false);
     }
+  };
+
+  const handleCheckForUpdates = async () => {
+    if (updateUi.kind === "checking") return;
+
+    // 已下载完成的情况，按钮变成"立即重启"
+    if (updateUi.kind === "downloaded") {
+      try {
+        await platformAPI.packages.system.installUpdate();
+      } catch (error) {
+        setUpdateUi({
+          kind: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+      return;
+    }
+
+    setUpdateUi({ kind: "checking" });
+    try {
+      const info = await platformAPI.packages.system.checkForUpdates();
+      switch (info.status) {
+        case "no-update":
+          setUpdateUi({
+            kind: "no-update",
+            currentVersion: info.currentVersion,
+          });
+          break;
+        case "downloading":
+          setUpdateUi({
+            kind: "downloading",
+            currentVersion: info.currentVersion,
+            latestVersion: info.latestVersion ?? "?",
+          });
+          break;
+        case "downloaded":
+          setUpdateUi({
+            kind: "downloaded",
+            currentVersion: info.currentVersion,
+          });
+          break;
+        case "skipped":
+          setUpdateUi({
+            kind: "skipped",
+            currentVersion: info.currentVersion,
+            message: info.error ?? "",
+          });
+          break;
+        case "error":
+        default:
+          setUpdateUi({
+            kind: "error",
+            currentVersion: info.currentVersion,
+            message: info.error ?? "未知错误",
+          });
+      }
+    } catch (error) {
+      setUpdateUi({
+        kind: "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  const renderUpdateStatus = () => {
+    switch (updateUi.kind) {
+      case "idle":
+        return null;
+      case "checking":
+        return (
+          <p className="text-xs text-muted-foreground">正在检查更新…</p>
+        );
+      case "no-update":
+        return (
+          <p className="text-xs text-muted-foreground">
+            已是最新版本（v{updateUi.currentVersion}）
+          </p>
+        );
+      case "downloading":
+        return (
+          <p className="text-xs text-muted-foreground">
+            发现新版本 v{updateUi.latestVersion}（当前 v
+            {updateUi.currentVersion}），正在后台下载…
+          </p>
+        );
+      case "downloaded":
+        return (
+          <p className="text-xs text-muted-foreground">
+            新版本已下载完成，点击右侧按钮重启应用以完成更新
+          </p>
+        );
+      case "skipped":
+        return (
+          <p className="text-xs text-muted-foreground">
+            {updateUi.message || "当前环境不支持检查更新"}
+          </p>
+        );
+      case "error":
+        return (
+          <p className="text-xs text-destructive">检查失败：{updateUi.message}</p>
+        );
+    }
+  };
+
+  const updateButtonText = () => {
+    if (updateUi.kind === "checking") return "检查中…";
+    if (updateUi.kind === "downloaded") return "立即重启应用";
+    return "检查更新";
   };
 
   const handleIdleStopChange = async (value: string) => {
@@ -187,6 +313,26 @@ const Settings: React.FC = () => {
               onCheckedChange={handleAutoUpdateToggle}
               disabled={isSavingSettings}
             />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5 flex-1 mr-4">
+              <label className="text-sm font-medium">手动检查更新</label>
+              {renderUpdateStatus() ?? (
+                <p className="text-xs text-muted-foreground">
+                  立即向 GitHub Releases 查询新版本，发现后会在后台下载，下载完成后可重启应用
+                </p>
+              )}
+            </div>
+            <Button
+              variant={
+                updateUi.kind === "downloaded" ? "default" : "outline"
+              }
+              onClick={handleCheckForUpdates}
+              disabled={updateUi.kind === "checking"}
+            >
+              {updateButtonText()}
+            </Button>
           </div>
 
           <div className="flex items-center justify-between">
