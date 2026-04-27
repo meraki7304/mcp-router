@@ -1,3 +1,4 @@
+pub mod logs;
 pub mod ping;
 pub mod projects;
 pub mod servers;
