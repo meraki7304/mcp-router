@@ -2,6 +2,10 @@ appId: com.mcprouter.app
 productName: MCP Router
 copyright: Copyright © ${author}
 
+# monorepo + pnpm hoist 下 builder 在 apps/electron/node_modules 找不到 electron 包，
+# 显式声明版本避免 "Cannot compute electron version" 错误
+electronVersion: 41.3.0
+
 directories:
   output: dist
   buildResources: build
