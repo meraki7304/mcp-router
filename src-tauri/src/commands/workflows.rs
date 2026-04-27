@@ -1,0 +1,64 @@
+use tauri::State;
+
+use crate::{
+    error::AppResult,
+    persistence::{
+        repository::workflow::{SqliteWorkflowRepository, WorkflowRepository},
+        types::workflow::{NewWorkflow, Workflow, WorkflowPatch},
+    },
+    state::AppState,
+};
+
+async fn repo(state: &State<'_, AppState>) -> AppResult<SqliteWorkflowRepository> {
+    Ok(SqliteWorkflowRepository::new(state.pool().await?))
+}
+
+#[tauri::command]
+pub async fn workflows_list(state: State<'_, AppState>) -> AppResult<Vec<Workflow>> {
+    repo(&state).await?.list().await
+}
+
+#[tauri::command]
+pub async fn workflows_list_enabled(
+    state: State<'_, AppState>,
+) -> AppResult<Vec<Workflow>> {
+    repo(&state).await?.list_enabled().await
+}
+
+#[tauri::command]
+pub async fn workflows_list_by_type(
+    state: State<'_, AppState>,
+    workflow_type: String,
+) -> AppResult<Vec<Workflow>> {
+    repo(&state).await?.list_by_type(&workflow_type).await
+}
+
+#[tauri::command]
+pub async fn workflows_get(
+    state: State<'_, AppState>,
+    id: String,
+) -> AppResult<Option<Workflow>> {
+    repo(&state).await?.get(&id).await
+}
+
+#[tauri::command]
+pub async fn workflows_create(
+    state: State<'_, AppState>,
+    input: NewWorkflow,
+) -> AppResult<Workflow> {
+    repo(&state).await?.create(input).await
+}
+
+#[tauri::command]
+pub async fn workflows_update(
+    state: State<'_, AppState>,
+    id: String,
+    patch: WorkflowPatch,
+) -> AppResult<Workflow> {
+    repo(&state).await?.update(&id, patch).await
+}
+
+#[tauri::command]
+pub async fn workflows_delete(state: State<'_, AppState>, id: String) -> AppResult<bool> {
+    repo(&state).await?.delete(&id).await
+}
