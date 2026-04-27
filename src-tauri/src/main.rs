@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    mcp_router_scaffold_lib::run()
+    mcp_router_lib::run();
 }
