@@ -49,7 +49,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Publish to GitHub Releases
-        run: pnpm --filter @mcp_router/electron run publish
+        run: pnpm --filter mcp-router-electron run publish
 
       - name: Upload build artifacts
         if: always()

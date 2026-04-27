@@ -12,14 +12,14 @@
   },
   "packageManager": "pnpm@10.22.0",
   "scripts": {
-    "dev": "turbo run dev --filter=@mcp_router/shared --filter=@mcp_router/ui --filter=@mcp_router/electron",
+    "dev": "turbo run dev --filter=@mcp_router/shared --filter=@mcp_router/ui --filter=mcp-router-electron",
     "build": "turbo run build",
-    "publish": "turbo run publish --filter=@mcp_router/electron",
+    "publish": "turbo run publish --filter=mcp-router-electron",
     "make": "turbo run make",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx,.mjs,.cjs --fix",
     "typecheck": "turbo run typecheck",
     "knip": "knip",
-    "test:e2e": "pnpm --filter @mcp_router/electron run test:e2e",
+    "test:e2e": "pnpm --filter mcp-router-electron run test:e2e",
     "postinstall": "electron-builder install-app-deps"
   },
   "keywords": [],
