@@ -11,7 +11,7 @@ use crate::error::AppResult;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
-pub async fn init_pool(db_path: &Path) -> AppResult<SqlitePool> {
+pub async fn init_pool_at_path(db_path: &Path) -> AppResult<SqlitePool> {
     if let Some(parent) = db_path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| {
             crate::error::AppError::Internal(format!("create db dir: {e}"))
@@ -34,4 +34,9 @@ pub async fn init_pool(db_path: &Path) -> AppResult<SqlitePool> {
     })?;
 
     Ok(pool)
+}
+
+// Compatibility alias — keeps Plan 1 lib.rs working until it switches to registry in Task 5.
+pub async fn init_pool(db_path: &Path) -> AppResult<SqlitePool> {
+    init_pool_at_path(db_path).await
 }
