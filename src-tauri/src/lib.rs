@@ -38,6 +38,7 @@ use crate::{
             workflows_list_by_type, workflows_list_enabled, workflows_update,
         },
     },
+    http::serve::spawn_http_server,
     mcp::server_manager::ServerManager,
     persistence::registry::{WorkspacePoolRegistry, DEFAULT_WORKSPACE},
     shared_config::store::SharedConfigStore,
@@ -77,8 +78,16 @@ pub fn run() {
                 let server_manager = ServerManager::new(registry.clone());
 
                 let state = AppState::new(registry, shared_config, server_manager);
+
+                // Spawn the HTTP server BEFORE manage so we can use the components.
+                let server_manager_arc = state.server_manager.clone();
+                let shared_config_arc = state.shared_config.clone();
+                if let Err(err) = spawn_http_server(server_manager_arc, shared_config_arc).await {
+                    error!(?err, "failed to spawn MCP HTTP server (continuing without it)");
+                }
+
                 handle.manage(state);
-                info!("AppState initialized (registry + shared_config + server_manager seeded)");
+                info!("AppState initialized (registry + shared_config + server_manager seeded; HTTP server on 127.0.0.1:3282)");
             });
 
             Ok(())
