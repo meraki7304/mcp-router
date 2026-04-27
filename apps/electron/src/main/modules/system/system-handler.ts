@@ -1,4 +1,5 @@
-import { ipcMain, app, autoUpdater } from "electron";
+import { ipcMain, app } from "electron";
+import { autoUpdater } from "electron-updater";
 import { commandExists } from "@/main/utils/env-utils";
 import { mainWindow } from "@/main";
 

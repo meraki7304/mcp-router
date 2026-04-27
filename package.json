@@ -20,29 +20,26 @@
     "typecheck": "turbo run typecheck",
     "knip": "knip",
     "test:e2e": "pnpm --filter @mcp_router/electron run test:e2e",
-    "postinstall": "electron-rebuild"
+    "postinstall": "electron-builder install-app-deps"
   },
   "keywords": [],
   "devDependencies": {
-    "@electron/rebuild": "^4.0.4",
     "@eslint/js": "^9.39.4",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^22.19.17",
-    "@types/react-router-dom": "^5.3.3",
+    "@types/node": "^25.6.0",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.59.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
-    "globals": "^16.5.0",
-    "knip": "^5.88.1",
+    "globals": "^17.5.0",
+    "knip": "^6.7.0",
     "prettier": "^3.8.3",
     "turbo": "^2.9.6",
     "typescript": "^5.9.3"
   },
   "pnpm": {
     "overrides": {
-      "webpack-dev-server": "^5.2.1",
       "@octokit/request-error@>=1.0.0 <5.1.1": ">=5.1.1",
       "@octokit/request@>=1.0.0 <8.4.1": ">=8.4.1",
       "@octokit/plugin-paginate-rest@>=1.0.0 <9.2.2": ">=9.2.2",
@@ -51,8 +48,7 @@
       "@eslint/plugin-kit@<0.3.3": ">=0.3.3",
       "jsondiffpatch@<0.7.2": ">=0.7.2",
       "tmp@<=0.2.3": ">=0.2.4",
-      "electron@>=36.0.0-alpha.1 <36.8.1": ">=36.8.1",
-      "@modelcontextprotocol/sdk@<1.25.2": ">=1.25.2",
+      "@modelcontextprotocol/sdk@<1.29.0": ">=1.29.0",
       "react-router@>=7.0.0 <=7.11.0": ">=7.12.0",
       "react-router@>=7.0.0 <7.12.0": ">=7.12.0",
       "preact@>=10.28.0 <10.28.2": ">=10.28.2"
@@ -61,10 +57,7 @@
       "better-sqlite3",
       "core-js",
       "electron",
-      "electron-winstaller",
-      "esbuild",
-      "fs-xattr",
-      "macos-alias"
+      "esbuild"
     ]
   }
 }

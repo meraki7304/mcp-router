@@ -4,15 +4,13 @@ import { MCPServerManager } from "@/main/modules/mcp-server-manager/mcp-server-m
 import { AggregatorServer } from "@/main/modules/mcp-server-runtime/aggregator-server";
 import { MCPHttpServer } from "@/main/modules/mcp-server-runtime/http/mcp-http-server";
 import { ToolCatalogService } from "@/main/modules/tool-catalog/tool-catalog.service";
-import started from "electron-squirrel-startup";
-import { updateElectronApp } from "update-electron-app";
 import { setApplicationMenu } from "@/main/ui/menu";
 import { createTray, updateTrayContextMenu } from "@/main/ui/tray";
 import { getPlatformAPIManager } from "@/main/modules/workspace/platform-api-manager";
 import { getWorkspaceService } from "@/main/modules/workspace/workspace.service";
 import { getSharedConfigManager } from "@/main/infrastructure/shared-config-manager";
 import { setupIpcHandlers } from "./main/infrastructure/ipc";
-import { resolveAutoUpdateConfig } from "./main/modules/system/app-updator";
+import { setupAutoUpdate } from "./main/modules/system/app-updator";
 import { getIsAutoUpdateInProgress } from "./main/modules/system/system-handler";
 import { initializeEnvironment, isDevelopment } from "@/main/utils/environment";
 import {
@@ -52,26 +50,12 @@ app.on("second-instance", (_event, commandLine) => {
   }
 });
 
-if (started) app.quit();
-
 // Global references
 export let mainWindow: BrowserWindow | null = null;
 // Flag to track if app.quit() was explicitly called
 let isQuitting = false;
 // Timer for updating tray context menu
 let trayUpdateTimer: NodeJS.Timeout | null = null;
-
-// 配置自动更新（规避未签名 macOS 构建崩溃）
-const { enabled: enableAutoUpdate, options: autoUpdateOptions } =
-  resolveAutoUpdateConfig();
-
-if (enableAutoUpdate && autoUpdateOptions) {
-  updateElectronApp(autoUpdateOptions);
-}
-
-// Declare global variables defined by Electron Forge
-declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string | undefined;
-declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 
 let serverManager: MCPServerManager;
 let aggregatorServer: AggregatorServer;
@@ -94,7 +78,7 @@ const createWindow = ({ showOnCreate = true }: CreateWindowOptions = {}) => {
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
-      preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      preload: path.join(__dirname, "../preload/index.js"),
       contextIsolation: true,
       nodeIntegration: false,
       devTools: isDevelopment(),
@@ -162,7 +146,13 @@ const createWindow = ({ showOnCreate = true }: CreateWindowOptions = {}) => {
     }
   });
 
-  mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+  // electron-vite 在 dev 模式下注入 ELECTRON_RENDERER_URL（指向 vite dev server），
+  // 生产构建后从 out/renderer 读取打包好的 index.html
+  if (process.env["ELECTRON_RENDERER_URL"]) {
+    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+  }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
@@ -335,6 +325,9 @@ async function initApplication(): Promise<void> {
     (!launchedAtLogin || showWindowOnStartup) && !launchedWithHiddenFlag;
 
   initUI({ showMainWindow: shouldShowMainWindow });
+
+  // 启动后非阻塞地拉起自动更新检查，未签名 / 无网络 / dev 模式都会被静默跳过
+  setupAutoUpdate();
 }
 
 app.on("ready", initApplication);

@@ -1,0 +1,66 @@
+appId: com.mcprouter.app
+productName: MCP Router
+copyright: Copyright © ${author}
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - out/**/*
+  - "!**/*.map"
+
+asar: true
+asarUnpack:
+  - "**/*.node"
+
+# TODO: 加 afterPack hook 运行 @electron/fuses CLI（V1 + RunAsNode:false 等），
+# 加 build/entitlements.mac.plist 用于 macOS 签名/notarize。
+# 留到 make 阶段补，dev 不影响。
+
+mac:
+  category: public.app-category.developer-tools
+  icon: public/images/icon/icon.icns
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  hardenedRuntime: true
+  gatekeeperAssess: false
+
+dmg:
+  format: ULFO
+
+win:
+  icon: public/images/icon/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: zip
+      arch:
+        - x64
+
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  shortcutName: MCP Router
+
+linux:
+  icon: public/images/icon/icon.png
+  category: Development
+  target:
+    - AppImage
+    - deb
+
+publish:
+  provider: github
+  owner: meraki7304
+  repo: mcp-router
+  releaseType: draft

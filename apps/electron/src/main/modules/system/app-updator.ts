@@ -1,39 +1,32 @@
 import { app } from "electron";
-import type { IUpdateElectronAppOptions } from "update-electron-app";
+import { autoUpdater } from "electron-updater";
 import { getSettingsService } from "@/main/modules/settings/settings.service";
 import { isProduction } from "@/main/utils/environment";
 
-type AutoUpdateConfig = {
-  enabled: boolean;
-  options?: IUpdateElectronAppOptions;
-};
-
-const DEFAULT_AUTO_UPDATE_OPTIONS: IUpdateElectronAppOptions = {
-  notifyUser: false,
-};
-
 /**
- * Determine whether auto-update should run and return options for update-electron-app
- * Errors are swallowed to avoid crashing on environments (e.g., unsigned macOS builds)
+ * 启用 electron-updater 的自动更新检查。
+ * - 仅在 production + packaged + 用户未关闭 autoUpdate 时启用
+ * - 抓住所有错误：未签名 / 无网络 / publish 配置缺失 都不应崩溃主进程
+ * - feed 配置走 electron-builder.yml 的 publish 字段，runtime 不需要额外设置
  */
-export function resolveAutoUpdateConfig(): AutoUpdateConfig {
+export function setupAutoUpdate(): void {
   try {
-    const settingsService = getSettingsService();
-    const settings = settingsService.getSettings();
+    const settings = getSettingsService().getSettings();
     const autoUpdateEnabled = settings.autoUpdateEnabled ?? true;
+    const shouldEnable = isProduction() && app.isPackaged && autoUpdateEnabled;
 
-    const shouldEnableAutoUpdate =
-      isProduction() && app.isPackaged && autoUpdateEnabled;
+    if (!shouldEnable) return;
 
-    if (!shouldEnableAutoUpdate) {
-      return { enabled: false };
-    }
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on("error", (err) => {
+      console.error("[AutoUpdate] error:", err);
+    });
 
-    return {
-      enabled: true,
-      options: DEFAULT_AUTO_UPDATE_OPTIONS,
-    };
-  } catch {
-    return { enabled: false };
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      console.error("[AutoUpdate] checkForUpdatesAndNotify failed:", err);
+    });
+  } catch (err) {
+    console.error("[AutoUpdate] setup failed:", err);
   }
 }
