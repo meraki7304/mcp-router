@@ -23,6 +23,9 @@ jobs:
             label: Windows
     env:
       CI: true
+      # electron-builder 需要 GH_TOKEN 上传到 GitHub Releases；
+      # GitHub Actions 自动注入的 GITHUB_TOKEN 即可
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
@@ -53,5 +56,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.label }}
-          path: apps/electron/out/make
+          path: |
+            apps/electron/dist/*.dmg
+            apps/electron/dist/*.zip
+            apps/electron/dist/*.exe
+            apps/electron/dist/*.blockmap
+            apps/electron/dist/latest*.yml
           if-no-files-found: warn
