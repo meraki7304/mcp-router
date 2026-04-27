@@ -9,7 +9,30 @@ use tracing::{error, info};
 use tracing_subscriber::{fmt, EnvFilter};
 
 use crate::{
-    commands::ping::ping,
+    commands::{
+        hooks::{
+            hooks_create, hooks_delete, hooks_find_by_name, hooks_get, hooks_list, hooks_update,
+        },
+        logs::{logs_query, logs_trim},
+        ping::ping,
+        projects::{
+            projects_create, projects_delete, projects_find_by_name, projects_get, projects_list,
+            projects_update,
+        },
+        servers::{
+            servers_create, servers_delete, servers_find_by_name, servers_get,
+            servers_list, servers_list_by_project, servers_update,
+        },
+        settings::{settings_get, settings_update},
+        tokens::{
+            tokens_delete, tokens_delete_client, tokens_get, tokens_list, tokens_save,
+            tokens_update_server_access,
+        },
+        workflows::{
+            workflows_create, workflows_delete, workflows_get, workflows_list,
+            workflows_list_by_type, workflows_list_enabled, workflows_update,
+        },
+    },
     persistence::registry::{WorkspacePoolRegistry, DEFAULT_WORKSPACE},
     shared_config::store::SharedConfigStore,
     state::AppState,
@@ -54,7 +77,45 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![ping])
+        .invoke_handler(tauri::generate_handler![
+            ping,
+            settings_get,
+            settings_update,
+            tokens_list,
+            tokens_get,
+            tokens_save,
+            tokens_delete,
+            tokens_delete_client,
+            tokens_update_server_access,
+            projects_list,
+            projects_get,
+            projects_find_by_name,
+            projects_create,
+            projects_update,
+            projects_delete,
+            servers_list,
+            servers_list_by_project,
+            servers_get,
+            servers_find_by_name,
+            servers_create,
+            servers_update,
+            servers_delete,
+            logs_query,
+            logs_trim,
+            workflows_list,
+            workflows_list_enabled,
+            workflows_list_by_type,
+            workflows_get,
+            workflows_create,
+            workflows_update,
+            workflows_delete,
+            hooks_list,
+            hooks_get,
+            hooks_find_by_name,
+            hooks_create,
+            hooks_update,
+            hooks_delete,
+        ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app_handle, event| {
