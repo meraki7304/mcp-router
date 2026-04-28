@@ -1,19 +1,31 @@
 /**
- * Tauri 渲染端根组件：包一层 PlatformAPIProvider 后挂 legacy App。
+ * Tauri 渲染端根组件：HashRouter + PlatformAPIProvider + 标题栏 + 主区。
  *
- * Plan 9a 桥接：i18n 在此处做 side-effect 初始化；platformAPI 注入 React Context。
+ * 等价于老 renderer.tsx 的布局：HashRouter 提供路由上下文（Sidebar/路由组件依赖），
+ * TitleBar 占顶部条，下面是主区域挂 legacy App。i18n 在此处 side-effect 初始化。
  */
 
 import "./lib/i18n";
 
+import { HashRouter } from "react-router-dom";
+
 import LegacyApp from "./components/App";
+import { TitleBar } from "./components/TitleBar";
 import { PlatformAPIProvider } from "./platform-api/platform-api-context";
 import { tauriPlatformAPI } from "./platform-api/tauri-platform-api";
 
 export default function App() {
   return (
     <PlatformAPIProvider platformAPI={tauriPlatformAPI}>
-      <LegacyApp />
+      <HashRouter>
+        <div className="h-screen flex flex-col">
+          <TitleBar />
+          <div className="flex-1 overflow-hidden">
+            <div className="h-2" />
+            <LegacyApp />
+          </div>
+        </div>
+      </HashRouter>
     </PlatformAPIProvider>
   );
 }
