@@ -10,7 +10,6 @@ import "./lib/i18n";
 import { HashRouter } from "react-router-dom";
 
 import LegacyApp from "./components/App";
-import { TitleBar } from "./components/TitleBar";
 import { PlatformAPIProvider } from "./platform-api/platform-api-context";
 import { tauriPlatformAPI } from "./platform-api/tauri-platform-api";
 
@@ -19,9 +18,7 @@ export default function App() {
     <PlatformAPIProvider platformAPI={tauriPlatformAPI}>
       <HashRouter>
         <div className="h-screen flex flex-col">
-          <TitleBar />
           <div className="flex-1 overflow-hidden">
-            <div className="h-2" />
             <LegacyApp />
           </div>
         </div>

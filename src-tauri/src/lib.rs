@@ -81,6 +81,40 @@ pub fn run() {
 
                 let server_manager = ServerManager::new(registry.clone());
 
+                // 启动时扫描配置 auto_start=true 且未 disabled 的服务器并自动拉起。
+                // 失败逐个记日志，不阻塞 AppState 构建（一台跑不起来不应该影响其他能力）。
+                if let Ok(pool) = registry.get_or_init(DEFAULT_WORKSPACE).await {
+                    use crate::persistence::repository::server::{
+                        ServerRepository, SqliteServerRepository,
+                    };
+                    let repo = SqliteServerRepository::new(pool);
+                    match repo.list().await {
+                        Ok(servers) => {
+                            for s in servers {
+                                if s.auto_start && !s.disabled {
+                                    if let Err(err) = server_manager.start(&s.id).await {
+                                        tracing::warn!(
+                                            server_id = %s.id,
+                                            server_name = %s.name,
+                                            ?err,
+                                            "auto-start failed"
+                                        );
+                                    } else {
+                                        info!(
+                                            server_id = %s.id,
+                                            server_name = %s.name,
+                                            "auto-start ok"
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            tracing::warn!(?err, "auto-start scan: list servers failed");
+                        }
+                    }
+                }
+
                 let hook_runtime = match HookRuntime::new() {
                     Ok(rt) => rt,
                     Err(err) => {

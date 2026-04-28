@@ -430,14 +430,84 @@ class TauriPlatformAPI implements PlatformAPI {
   };
 
   apps: AppAPI = {
-    // apps.* 在 Tauri 后端尚无对应实现；返回安全占位（空列表/抛错）。Plan 9b/9c 接入。
-    list: async () => [],
-    create: async () => {
-      throw new Error("apps.create 未实现 (Plan 9b)");
+    // apps.* 用 tokens 作为底层存储：每个 App 名一一对应一个 Token (clientId == app name)。
+    // 没有 OS 级配置文件集成（installed/configPath 为占位）；真整合 (Claude Desktop / Cursor 等
+    // 配置写入) 留给后续 plan。
+    list: async () => {
+      const rows: BackendToken[] = await invoke("tokens_list");
+      return rows.map((t) => ({
+        name: t.clientId,
+        installed: true,
+        configPath: "",
+        configured: true,
+        token: t.id,
+        serverAccess: t.serverAccess as Record<string, boolean>,
+        isCustom: true,
+        hasOtherServers: false,
+      }));
     },
-    delete: async () => false,
-    updateServerAccess: async () => {
-      throw new Error("apps.updateServerAccess 未实现 (Plan 9b)");
+    create: async (appName) => {
+      const id = (typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `tok_${Date.now()}_${Math.floor(Math.random() * 1e9)}`) as string;
+      const token: BackendToken = {
+        id,
+        clientId: appName,
+        issuedAt: BigInt(Date.now()) as unknown as bigint,
+        serverAccess: {},
+      };
+      await invoke("tokens_save", { token });
+      return {
+        success: true,
+        message: `App "${appName}" 创建成功`,
+        app: {
+          name: appName,
+          installed: true,
+          configPath: "",
+          configured: true,
+          token: id,
+          serverAccess: {},
+          isCustom: true,
+          hasOtherServers: false,
+        },
+      };
+    },
+    delete: async (appName) => {
+      const removed: number = await invoke("tokens_delete_client", {
+        clientId: appName,
+      });
+      return removed > 0;
+    },
+    updateServerAccess: async (appName, serverAccess) => {
+      // 找到该 client 的所有 token，逐个更新（通常一个 client 一个 token）
+      const rows: BackendToken[] = await invoke("tokens_list");
+      const matches = rows.filter((t) => t.clientId === appName);
+      if (matches.length === 0) {
+        return {
+          success: false,
+          message: `App "${appName}" 未找到`,
+        };
+      }
+      for (const t of matches) {
+        await invoke<boolean>("tokens_update_server_access", {
+          id: t.id,
+          serverAccess,
+        });
+      }
+      return {
+        success: true,
+        message: `App "${appName}" 服务器访问权限已更新`,
+        app: {
+          name: appName,
+          installed: true,
+          configPath: "",
+          configured: true,
+          token: matches[0].id,
+          serverAccess,
+          isCustom: true,
+          hasOtherServers: false,
+        },
+      };
     },
 
     tokens: {
