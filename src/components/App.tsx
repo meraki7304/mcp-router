@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { toast } from "sonner";
 import PageLayout from "./layout/PageLayout";
 import { Sonner } from "@mcp_router/ui";
 import DiscoverWrapper from "@/renderer/components/mcp/server/DiscoverWrapper";
@@ -60,6 +61,39 @@ const App: React.FC = () => {
     }, 3000);
     return () => clearInterval(id);
   }, [refreshServers]);
+
+  // 监听后端 http-server-failed 事件：端口被占用等绑定失败时弹 toast 提醒
+  useEffect(() => {
+    let cancelled = false;
+    const unlistenPromise = (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        return await listen<{ port?: number; reason?: string }>(
+          "http-server-failed",
+          (event) => {
+            if (cancelled) return;
+            const port = event.payload?.port ?? 3282;
+            const reason = event.payload?.reason ?? "未知原因";
+            toast.error(
+              `MCP HTTP 服务器启动失败（端口 ${port}）：${reason}`,
+              { duration: 15000 },
+            );
+          },
+        );
+      } catch (e) {
+        console.error("listen http-server-failed failed", e);
+        return undefined;
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unlistenPromise
+        .then((unlisten) => {
+          if (unlisten) unlisten();
+        })
+        .catch(() => {});
+    };
+  }, []);
 
   // 监听后端 server-status-changed 事件，立即刷一次（替代/补充 3 秒轮询）
   // 防泄露：cleanup 可能比 listen() promise 先 resolve，原写法那样 unlisten

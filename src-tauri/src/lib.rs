@@ -209,6 +209,15 @@ pub fn run() {
                 let shared_config_arc = state.shared_config.clone();
                 if let Err(err) = spawn_http_server(server_manager_arc, shared_config_arc).await {
                     error!(?err, "failed to spawn MCP HTTP server (continuing without it)");
+                    // 端口被占用最常见。把原因抛到前端显示 toast，避免用户以为没问题。
+                    use tauri::Emitter;
+                    let payload = serde_json::json!({
+                        "port": 3282,
+                        "reason": err.to_string(),
+                    });
+                    if let Err(e) = handle.emit("http-server-failed", payload) {
+                        tracing::warn!(?e, "emit http-server-failed failed");
+                    }
                 }
 
                 state
