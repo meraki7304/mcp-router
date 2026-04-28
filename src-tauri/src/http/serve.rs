@@ -24,7 +24,10 @@ use crate::{
     shared_config::store::SharedConfigStore,
 };
 
-pub const HTTP_BIND_ADDR: &str = "127.0.0.1:3282";
+/// 绑 [::] 而不是 127.0.0.1：客户端可能用 `localhost:3282` 它会解析成
+/// IPv6 ::1，原来只绑 IPv4 时连不上。Windows dual-stack socket 自动覆盖
+/// IPv4 + IPv6 loopback。仍然只接受 loopback 流量（外网不可达）。
+pub const HTTP_BIND_ADDR: &str = "[::]:3282";
 
 /// Build the axum router with `/mcp` mounted (auth-required) and a permissive `/health` endpoint.
 pub fn build_router(
