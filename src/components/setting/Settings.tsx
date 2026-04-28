@@ -11,7 +11,7 @@ import {
 import { Switch } from "@mcp_router/ui";
 import { Button } from "@mcp_router/ui";
 import { useThemeStore } from "@/renderer/stores";
-import { electronPlatformAPI as platformAPI } from "../../platform-api/electron-platform-api";
+import { platformAPI } from "../../platform-api";
 
 type UpdateUiState =
   | { kind: "idle"; currentVersion?: string }

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Project, ProjectOptimization } from "@mcp_router/shared";
 import { UNASSIGNED_PROJECT_ID as SHARED_UNASSIGNED_PROJECT_ID } from "@mcp_router/shared";
-import { electronPlatformAPI } from "../platform-api/electron-platform-api";
+import { platformAPI } from "../platform-api";
 
 type CollapsedState = Record<string, boolean>; // projectId -> collapsed
 
@@ -44,7 +44,7 @@ function sortProjects(projects: Project[]): Project[] {
 }
 
 function getPlatformAPI() {
-  return electronPlatformAPI;
+  return platformAPI;
 }
 
 export const useProjectStore = create<ProjectStoreState>((set, get) => ({

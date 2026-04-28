@@ -11,10 +11,10 @@ export * from "./theme-store";
 // Import store factories
 import { createServerStore } from "./server-store";
 import { createThemeStore, initializeThemeStore } from "./theme-store";
-import { electronPlatformAPI } from "../platform-api/electron-platform-api";
+import { platformAPI } from "../platform-api";
 
 function getPlatformAPI() {
-  return electronPlatformAPI;
+  return platformAPI;
 }
 
 export const useServerStore = createServerStore(getPlatformAPI);
