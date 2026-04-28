@@ -1,46 +1,26 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import LanguageDetector from "i18next-browser-languagedetector";
-import enTranslation from "../../locales/en.json";
-import zhTranslation from "../../locales/zh.json";
 
-// Initialize i18next
-i18n
-  // Detect user language
-  .use(LanguageDetector)
-  // Pass the i18n instance to react-i18next
-  .use(initReactI18next)
-  // Set up i18next
-  .init({
-    resources: {
-      en: {
-        translation: enTranslation,
-      },
-      zh: {
-        translation: zhTranslation,
-      },
+import zhTranslation from "../locales/zh.json";
+
+void i18n.use(initReactI18next).init({
+  resources: {
+    zh: {
+      translation: zhTranslation,
     },
-    supportedLngs: ["en", "zh"],
-    fallbackLng: "zh",
-    // Debug mode in development environment
-    debug: process.env.NODE_ENV === "development",
+  },
+  lng: "zh",
+  fallbackLng: "zh",
+  ns: ["translation"],
+  defaultNS: "translation",
+  interpolation: {
+    escapeValue: false, // React already safes from XSS
+  },
+  // Allow returning objects from translation keys
+  returnObjects: true,
+  react: {
+    useSuspense: true,
+  },
+});
 
-    // Common namespace used around the app
-    ns: ["translation"],
-    defaultNS: "translation",
-
-    // Caching
-    load: "currentOnly",
-
-    interpolation: {
-      escapeValue: false, // React already safes from XSS
-    },
-
-    // Allow returning objects from translation keys
-    returnObjects: true,
-
-    // React settings
-    react: {
-      useSuspense: true,
-    },
-  });
+export default i18n;
