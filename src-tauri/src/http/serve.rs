@@ -28,11 +28,19 @@ pub fn build_router(
     let server_manager_for_factory = server_manager.clone();
     let shared_config_for_factory = shared_config.clone();
 
-    // 必须 stateful_mode = true：客户端首次 POST 创建 session，后续 tools/call
-    // 与 SSE 重连依赖 session 状态保留。默认（false）下第二次请求会撞 "session not found"。
+    // 无状态 + JSON 响应模式：每个 POST 请求独立处理，不维护 session，不开 SSE 流。
+    //
+    // 走 stateful_mode=true + LocalSessionManager 时，server 重启后内存里的 session
+    // 全没了，但很多 MCP 客户端会缓存 session-id 重连——撞到 "session not found"
+    // 就直接 closing connection 而不是按 spec 重新 initialize（典型 bug：见
+    // LibreChat #11868）。
+    //
+    // Aggregator 场景不需要 server-side 主推通知（tools/list_changed 等），所以
+    // 用 stateless + JSON 既稳又简单。代价：MCP 客户端如果指定要 SSE 会拿到 JSON。
     // StreamableHttpServerConfig 是 #[non_exhaustive]，只能 default + 字段赋值。
     let mut cfg = StreamableHttpServerConfig::default();
-    cfg.stateful_mode = true;
+    cfg.stateful_mode = false;
+    cfg.json_response = true;
     cfg.sse_keep_alive = Some(Duration::from_secs(30));
     cfg.sse_retry = Some(Duration::from_secs(3));
 
