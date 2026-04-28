@@ -122,7 +122,6 @@
     "enterAppName": "输入客户端名称",
     "empty": "暂无客户端。请在上方添加一个。",
     "serverAccess": "访问控制",
-    "accessibleServers": "可访问服务器数",
     "copyToken": "复制令牌",
     "tokenCopied": "令牌已复制到剪贴板",
     "tokenCopyFailed": "令牌复制失败",

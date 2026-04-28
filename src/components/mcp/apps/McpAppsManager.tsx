@@ -327,9 +327,6 @@ const McpAppsManager: React.FC = () => {
       ) : (
         <div className="space-y-2">
           {apps.map((app) => {
-            const accessibleCount = Object.values(
-              app.serverAccess || {},
-            ).filter(Boolean).length;
             const tokenPreview = app.token
               ? `${app.token.slice(0, 8)}…${app.token.slice(-4)}`
               : "—";
@@ -341,13 +338,8 @@ const McpAppsManager: React.FC = () => {
                     <IconKey className="h-5 w-5 text-muted-foreground shrink-0" />
                     <div className="min-w-0 flex-1">
                       <div className="font-medium truncate">{app.name}</div>
-                      <div className="text-xs text-muted-foreground flex gap-3">
-                        <span>
-                          Token: <code>{tokenPreview}</code>
-                        </span>
-                        <span>
-                          {t("mcpApps.accessibleServers")}: {accessibleCount}
-                        </span>
+                      <div className="text-xs text-muted-foreground">
+                        Token: <code>{tokenPreview}</code>
                       </div>
                     </div>
                   </div>
