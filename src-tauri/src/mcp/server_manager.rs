@@ -111,6 +111,12 @@ impl ServerManager {
                 if let Some(cwd) = server.context_path.as_deref() {
                     cmd.current_dir(cwd);
                 }
+                // Windows 下默认子进程会弹一个控制台窗口；CREATE_NO_WINDOW 抑制掉。
+                #[cfg(windows)]
+                {
+                    const CREATE_NO_WINDOW: u32 = 0x08000000;
+                    cmd.creation_flags(CREATE_NO_WINDOW);
+                }
 
                 info!(server_id, command = %command_str, "spawning local mcp server subprocess");
 
