@@ -4,6 +4,7 @@ use crate::{
     mcp::server_manager::ServerManager,
     persistence::registry::WorkspacePoolRegistry,
     shared_config::store::SharedConfigStore,
+    workflow::hook_runtime::HookRuntime,
 };
 
 #[derive(Clone)]
@@ -11,6 +12,7 @@ pub struct AppState {
     pub registry: Arc<WorkspacePoolRegistry>,
     pub shared_config: Arc<SharedConfigStore>,
     pub server_manager: Arc<ServerManager>,
+    pub hook_runtime: Arc<HookRuntime>,
 }
 
 impl AppState {
@@ -18,11 +20,13 @@ impl AppState {
         registry: Arc<WorkspacePoolRegistry>,
         shared_config: SharedConfigStore,
         server_manager: ServerManager,
+        hook_runtime: HookRuntime,
     ) -> Self {
         Self {
             registry,
             shared_config: Arc::new(shared_config),
             server_manager: Arc::new(server_manager),
+            hook_runtime: Arc::new(hook_runtime),
         }
     }
 

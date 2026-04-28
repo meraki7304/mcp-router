@@ -13,6 +13,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 use crate::{
     commands::{
+        hook_runtime::hooks_run,
         hooks::{
             hooks_create, hooks_delete, hooks_find_by_name, hooks_get, hooks_list, hooks_update,
         },
@@ -44,6 +45,7 @@ use crate::{
     persistence::registry::{WorkspacePoolRegistry, DEFAULT_WORKSPACE},
     shared_config::store::SharedConfigStore,
     state::AppState,
+    workflow::hook_runtime::HookRuntime,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -78,7 +80,15 @@ pub fn run() {
 
                 let server_manager = ServerManager::new(registry.clone());
 
-                let state = AppState::new(registry, shared_config, server_manager);
+                let hook_runtime = match HookRuntime::new() {
+                    Ok(rt) => rt,
+                    Err(err) => {
+                        error!(?err, "failed to construct HookRuntime");
+                        return;
+                    }
+                };
+
+                let state = AppState::new(registry, shared_config, server_manager, hook_runtime);
 
                 // Spawn the HTTP server BEFORE manage so we can use the components.
                 let server_manager_arc = state.server_manager.clone();
@@ -135,6 +145,7 @@ pub fn run() {
             hooks_create,
             hooks_update,
             hooks_delete,
+            hooks_run,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

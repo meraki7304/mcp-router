@@ -1,3 +1,4 @@
+pub mod hook_runtime;
 pub mod hooks;
 pub mod logs;
 pub mod ping;
