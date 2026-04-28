@@ -41,6 +41,8 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2",
+    "@tauri-apps/plugin-updater": "^2",
     "@uiw/react-codemirror": "^4.25.9",
     "@xyflow/react": "^12.10.2",
     "cmdk": "^1.1.1",

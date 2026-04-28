@@ -617,15 +617,61 @@ class TauriPlatformAPI implements PlatformAPI {
     system: {
       getPlatform: async () => "win32",
       checkCommand: async () => false,
-      restartApp: async () => false,
-      checkForUpdates: async () => ({
-        updateAvailable: false,
-        status: "no-update",
-        currentVersion: "1.1.0",
-      }),
-      installUpdate: async () => false,
-      onUpdateAvailable: () => () => {
-        /* noop until Plan 10 wires updater */
+      restartApp: async () => {
+        const { relaunch } = await import("@tauri-apps/plugin-process");
+        await relaunch();
+        return true;
+      },
+      checkForUpdates: async () => {
+        const { getVersion } = await import("@tauri-apps/api/app");
+        const currentVersion = await getVersion();
+        try {
+          const { check } = await import("@tauri-apps/plugin-updater");
+          const update = await check();
+          if (!update) {
+            return { updateAvailable: false, status: "no-update", currentVersion };
+          }
+          // 异步下载安装；完成后触发自定义事件，UI 通过 onUpdateAvailable 收到
+          void update
+            .downloadAndInstall((event) => {
+              if (event.event === "Finished") {
+                window.dispatchEvent(new CustomEvent("mcp-update-downloaded"));
+              }
+            })
+            .catch((err) => {
+              window.dispatchEvent(
+                new CustomEvent("mcp-update-error", {
+                  detail: err instanceof Error ? err.message : String(err),
+                }),
+              );
+            });
+          return {
+            updateAvailable: false,
+            status: "downloading",
+            currentVersion,
+            latestVersion: update.version,
+            releaseNotes: update.body,
+          };
+        } catch (err) {
+          return {
+            updateAvailable: false,
+            status: "error",
+            currentVersion,
+            error: err instanceof Error ? err.message : String(err),
+          };
+        }
+      },
+      installUpdate: async () => {
+        const { relaunch } = await import("@tauri-apps/plugin-process");
+        await relaunch();
+        return true;
+      },
+      onUpdateAvailable: (callback) => {
+        const handler = () => callback(true);
+        window.addEventListener("mcp-update-downloaded", handler);
+        return () => {
+          window.removeEventListener("mcp-update-downloaded", handler);
+        };
       },
       onProtocolUrl: () => () => {
         /* noop until Plan 10 wires deep-link */

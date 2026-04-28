@@ -18,6 +18,8 @@ tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-shell = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 async-trait = "0.1"
 axum = "0.8"
 tower = { version = "0.5", features = ["util"] }

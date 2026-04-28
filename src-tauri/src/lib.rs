@@ -85,6 +85,8 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .on_window_event(|window, event| {
             // 关闭按钮：拦下 close，改为隐藏到托盘；下次从托盘点回来 show()。
             if let WindowEvent::CloseRequested { api, .. } = event {
