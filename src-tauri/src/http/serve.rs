@@ -105,6 +105,11 @@ async fn log_request(req: Request, next: Next) -> Response<Body> {
         .unwrap_or("(none)")
         .to_string();
     let auth_present = req.headers().contains_key("authorization");
+    // 双管齐下：tracing + 直接 eprintln，确认到底是中间件没跑还是 tracing 被吃了
+    eprintln!(
+        "[MCP-DIAG] >>> {} {} session={} accept={} auth={}",
+        method, uri, session_id, accept, auth_present
+    );
     info!(
         %method,
         %uri,
@@ -114,6 +119,7 @@ async fn log_request(req: Request, next: Next) -> Response<Body> {
         "mcp http request"
     );
     let response = next.run(req).await;
+    eprintln!("[MCP-DIAG] <<< status={}", response.status());
     info!(
         status = %response.status(),
         "mcp http response"
