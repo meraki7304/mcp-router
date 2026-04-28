@@ -19,6 +19,14 @@ use crate::{
     },
 };
 
+/// Lightweight info about a server that's currently running. Returned by `running_servers()`
+/// for Aggregator consumption (avoids cloning the full Server config).
+#[derive(Debug, Clone)]
+pub struct RunningServerInfo {
+    pub id: String,
+    pub name: String,
+}
+
 pub struct ServerManager {
     registry: Arc<WorkspacePoolRegistry>,
     clients: RwLock<HashMap<String, RunningService<RoleClient, ()>>>,
@@ -151,6 +159,65 @@ impl ServerManager {
                 })
             })
             .collect()
+    }
+
+    /// Return the (id, name) of every server currently running. Useful for the Aggregator
+    /// to enumerate tools across servers. Names are looked up from the DB per call —
+    /// not cached, since the user may rename a server while it's running (rare but possible).
+    pub async fn running_servers(&self) -> AppResult<Vec<RunningServerInfo>> {
+        let ids: Vec<String> = {
+            let clients = self.clients.read().await;
+            clients.keys().cloned().collect()
+        };
+        let mut out = Vec::with_capacity(ids.len());
+        for id in ids {
+            if let Some(server) = self.lookup_server(&id).await? {
+                out.push(RunningServerInfo {
+                    id: server.id,
+                    name: server.name,
+                });
+            }
+            // If lookup_server returns None, the server config was deleted while running.
+            // Skip silently — the entry will be cleaned up on next stop.
+        }
+        Ok(out)
+    }
+
+    /// Returns the typed tool list for a running server. Plan 7b's Aggregator uses this to
+    /// merge tools across servers without paying for serde_json round-trips.
+    pub async fn list_tools_typed(&self, server_id: &str) -> AppResult<Vec<rmcp::model::Tool>> {
+        let clients = self.clients.read().await;
+        let service = clients.get(server_id).ok_or_else(|| {
+            AppError::NotFound(format!("server {server_id} is not running"))
+        })?;
+
+        service
+            .list_all_tools()
+            .await
+            .map_err(|e| AppError::Upstream(format!("list_all_tools: {e}")))
+    }
+
+    /// Call a tool on a running server. Returns the rmcp `CallToolResult` directly.
+    pub async fn call_tool_typed(
+        &self,
+        server_id: &str,
+        tool_name: &str,
+        arguments: Option<serde_json::Map<String, serde_json::Value>>,
+    ) -> AppResult<rmcp::model::CallToolResult> {
+        let clients = self.clients.read().await;
+        let service = clients.get(server_id).ok_or_else(|| {
+            AppError::NotFound(format!("server {server_id} is not running"))
+        })?;
+
+        let mut req = rmcp::model::CallToolRequestParams::new(tool_name.to_owned());
+        if let Some(args) = arguments {
+            req = req.with_arguments(args);
+        }
+
+        service
+            .call_tool(req)
+            .await
+            .map_err(|e| AppError::Upstream(format!("call_tool {tool_name}: {e}")))
     }
 
     // Internal: fetch a server config from the default workspace's DB.

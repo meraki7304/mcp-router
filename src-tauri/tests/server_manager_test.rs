@@ -47,3 +47,39 @@ async fn start_returns_not_found_for_missing_server_config() {
         result
     );
 }
+
+#[tokio::test]
+async fn list_tools_typed_errors_when_not_running() {
+    let (_tmp, mgr) = make_manager();
+    let result = mgr.list_tools_typed("missing").await;
+    assert!(matches!(
+        result,
+        Err(mcp_router_lib::error::AppError::NotFound(_))
+    ));
+}
+
+#[tokio::test]
+async fn call_tool_typed_errors_when_not_running() {
+    let (_tmp, mgr) = make_manager();
+    let result = mgr.call_tool_typed("missing", "any", None).await;
+    assert!(matches!(
+        result,
+        Err(mcp_router_lib::error::AppError::NotFound(_))
+    ));
+}
+
+#[tokio::test]
+async fn running_servers_returns_empty_when_none_running() {
+    let (_tmp, mgr) = make_manager();
+    let infos = mgr.running_servers().await.expect("running_servers");
+    assert!(infos.is_empty());
+}
+
+#[tokio::test]
+async fn running_servers_returns_app_result_ok_after_pool_init() {
+    // Sanity: the registry pool init (which happens lazily inside running_servers) doesn't error
+    // when there are no running servers.
+    let (_tmp, mgr) = make_manager();
+    let result = mgr.running_servers().await;
+    assert!(result.is_ok(), "expected Ok, got {:?}", result);
+}
