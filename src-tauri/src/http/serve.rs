@@ -1,6 +1,12 @@
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
-use axum::{middleware, Json, Router};
+use axum::{
+    body::Body,
+    extract::Request,
+    middleware::{self, Next},
+    response::Response,
+    Json, Router,
+};
 use rmcp::transport::streamable_http_server::{
     session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
 };
@@ -69,12 +75,47 @@ pub fn build_router(
         .nest_service(
             "/mcp",
             tower::ServiceBuilder::new()
+                .layer(middleware::from_fn(log_request))
                 .layer(middleware::from_fn_with_state(
                     auth_state,
                     require_bearer_token,
                 ))
                 .service(mcp_service),
         )
+}
+
+/// 临时诊断中间件：把每个 /mcp 请求的方法/路径/session-id/accept 记下来，
+/// 方便定位 "session not found" 的具体场景。
+async fn log_request(req: Request, next: Next) -> Response<Body> {
+    let method = req.method().clone();
+    let uri = req.uri().clone();
+    let session_id = req
+        .headers()
+        .get("mcp-session-id")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("(none)")
+        .to_string();
+    let accept = req
+        .headers()
+        .get("accept")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("(none)")
+        .to_string();
+    let auth_present = req.headers().contains_key("authorization");
+    info!(
+        %method,
+        %uri,
+        session_id = %session_id,
+        accept = %accept,
+        auth_present,
+        "mcp http request"
+    );
+    let response = next.run(req).await;
+    info!(
+        status = %response.status(),
+        "mcp http response"
+    );
+    response
 }
 
 /// Build the /health JSON payload: hub state + per-running-server status.
