@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, sync::OnceLock};
 
 use rmcp::{
     service::RunningService,
@@ -6,6 +6,7 @@ use rmcp::{
     RoleClient, ServiceExt,
 };
 use serde_json::Value;
+use tauri::AppHandle;
 use tokio::{process::Command, sync::RwLock};
 use tracing::{info, warn};
 
@@ -30,6 +31,7 @@ pub struct RunningServerInfo {
 pub struct ServerManager {
     registry: Arc<WorkspacePoolRegistry>,
     clients: RwLock<HashMap<String, RunningService<RoleClient, ()>>>,
+    app_handle: OnceLock<AppHandle>,
 }
 
 impl ServerManager {
@@ -37,6 +39,22 @@ impl ServerManager {
         Self {
             registry,
             clients: RwLock::new(HashMap::new()),
+            app_handle: OnceLock::new(),
+        }
+    }
+
+    /// Setup 阶段调一次：把 AppHandle 注入进来，以便后续 emit 事件
+    pub fn set_app_handle(&self, handle: AppHandle) {
+        let _ = self.app_handle.set(handle);
+    }
+
+    fn emit_status_change(&self, server_id: &str, status: &ServerStatus) {
+        use tauri::Emitter;
+        if let Some(handle) = self.app_handle.get() {
+            let payload = serde_json::json!({ "id": server_id, "status": status });
+            if let Err(e) = handle.emit("server-status-changed", payload) {
+                tracing::warn!(?e, "emit server-status-changed failed");
+            }
         }
     }
 
@@ -116,6 +134,8 @@ impl ServerManager {
         }
         clients.insert(server_id.to_string(), service);
         info!(server_id, "mcp server running");
+        drop(clients);
+        self.emit_status_change(server_id, &ServerStatus::Running);
         Ok(())
     }
 
@@ -130,6 +150,7 @@ impl ServerManager {
                 if let Err(e) = service.cancel().await {
                     return Err(AppError::Upstream(format!("cancel mcp service: {e}")));
                 }
+                self.emit_status_change(server_id, &ServerStatus::Stopped);
                 Ok(true)
             }
             None => Ok(false),

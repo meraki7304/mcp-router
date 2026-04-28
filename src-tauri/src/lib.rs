@@ -186,6 +186,7 @@ pub fn run() {
                     error!(?err, "failed to spawn MCP HTTP server (continuing without it)");
                 }
 
+                state.server_manager.set_app_handle(handle.clone());
                 handle.manage(state);
                 info!("AppState initialized (registry + shared_config + server_manager seeded; HTTP server on 127.0.0.1:3282)");
             });

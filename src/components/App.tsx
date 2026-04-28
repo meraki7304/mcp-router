@@ -61,6 +61,24 @@ const App: React.FC = () => {
     return () => clearInterval(id);
   }, [refreshServers]);
 
+  // 监听后端 server-status-changed 事件，立即刷一次（替代/补充 3 秒轮询）
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        unlisten = await listen("server-status-changed", () => {
+          refreshServers().catch(() => {});
+        });
+      } catch (e) {
+        console.error("listen server-status-changed failed", e);
+      }
+    })();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [refreshServers]);
+
   const LoadingIndicator = () => (
     <div className="flex h-full items-center justify-center bg-content-light">
       <div className="text-center">
