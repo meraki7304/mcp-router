@@ -337,6 +337,27 @@ function rendererSettingsToBackend(
 
 // ---------- Logs ----------
 
+/** MCP 规范方法名 → 渲染端 ActivityType 别名。后端写的是 spec method
+ *  ("tools/call" 等)，前端 useActivityData 的 ACTIVITY_TYPES 用 PascalCase 别名
+ *  ("CallTool" 等) 过滤——必须映射否则全部被滤掉，活动日志页空白。 */
+function mapRequestTypeToActivity(raw?: string | null): string {
+  if (!raw) return "";
+  switch (raw) {
+    case "tools/call":
+      return "CallTool";
+    case "tools/list":
+      return "ToolDiscovery";
+    case "tools/execute":
+      return "ToolExecute";
+    case "prompts/get":
+      return "GetPrompt";
+    case "resources/read":
+      return "ReadResource";
+    default:
+      return raw;
+  }
+}
+
 function backendRequestLogToRenderer(r: BackendRequestLog): RequestLogEntry {
   return {
     id: r.id,
@@ -345,7 +366,7 @@ function backendRequestLogToRenderer(r: BackendRequestLog): RequestLogEntry {
     clientName: r.client_name ?? "",
     serverId: r.server_id ?? "",
     serverName: r.server_name ?? "",
-    requestType: r.request_type ?? "",
+    requestType: mapRequestTypeToActivity(r.request_type),
     requestParams: r.request_params,
     responseData: r.response_data,
     responseStatus: (r.response_status === "error"
