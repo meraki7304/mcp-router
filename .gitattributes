@@ -1,0 +1,4 @@
+# SQL migrations 必须始终用 LF；行尾在 Windows 上被 autocrlf 改成 CRLF 会让
+# sqlx::migrate!() 算出的 checksum 跟 DB 里存的对不上 → "migration N was
+# previously applied but has been modified".
+*.sql text eol=lf
