@@ -5,6 +5,7 @@ pub mod mcp;
 pub mod persistence;
 pub mod shared_config;
 pub mod state;
+pub mod workflow;
 
 use tauri::{Manager, RunEvent};
 use tracing::{error, info};
