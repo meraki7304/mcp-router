@@ -413,7 +413,7 @@ const Manual: React.FC = () => {
           <div className="space-y-4">
             {importedServers ? (
               <ScrollArea className="h-60 rounded-md border bg-muted/30 p-3">
-                <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap break-words">
+                <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap wrap-break-word">
                   {JSON.stringify(importedServers, null, 2)}
                 </pre>
               </ScrollArea>

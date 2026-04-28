@@ -41,7 +41,7 @@ export const ServerErrorModal: React.FC<ServerErrorModalProps> = ({
           <DialogDescription>{serverName}</DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[400px] rounded-md border p-4">
-          <pre className="text-sm whitespace-pre-wrap break-words font-mono">
+          <pre className="text-sm whitespace-pre-wrap wrap-break-word font-mono">
             {parsedError?.displayMessage ||
               errorMessage ||
               t("serverList.noErrorDetails")}

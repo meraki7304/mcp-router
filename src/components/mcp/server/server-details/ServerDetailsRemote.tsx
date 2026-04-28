@@ -79,7 +79,7 @@ const ServerDetailsRemote: React.FC<ServerDetailsRemoteProps> = ({
         </div>
         <div className="pl-6">
           {server.remoteUrl ? (
-            <div className="bg-muted p-3 rounded-md border shadow-sm">
+            <div className="bg-muted p-3 rounded-md border shadow-xs">
               <ScrollArea className="max-h-[150px]">
                 <div className="whitespace-pre-wrap text-sm font-mono text-primary/90 break-all">
                   {server.remoteUrl}
@@ -104,7 +104,7 @@ const ServerDetailsRemote: React.FC<ServerDetailsRemoteProps> = ({
         </div>
         <div className="pl-6">
           {server.bearerToken ? (
-            <div className="bg-muted p-3 rounded-md border shadow-sm">
+            <div className="bg-muted p-3 rounded-md border shadow-xs">
               <ScrollArea className="max-h-[150px]">
                 <div className="whitespace-pre-wrap text-sm font-mono text-primary/90 break-all">
                   {server.bearerToken}

@@ -113,7 +113,7 @@ const ServerDetailsEnvironment: React.FC<ServerDetailsEnvironmentProps> = ({
       </div>
       <div className="pl-6">
         {Object.keys(server.env || {}).length > 0 ? (
-          <div className="bg-muted p-3 rounded-md border shadow-sm">
+          <div className="bg-muted p-3 rounded-md border shadow-xs">
             <ScrollArea className="max-h-[200px]">
               <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm font-mono text-primary/90">
                 {Object.entries(server.env || {}).map(([key, value], i) => (

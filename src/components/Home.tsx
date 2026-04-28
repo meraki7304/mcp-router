@@ -293,7 +293,7 @@ const Home: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t("common.search")}
-            className="w-full bg-background border border-border rounded-md py-1.5 px-3 pl-8 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-background border border-border rounded-md py-1.5 px-3 pl-8 text-sm focus:outline-hidden focus:ring-1 focus:ring-primary"
           />
           <IconSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>

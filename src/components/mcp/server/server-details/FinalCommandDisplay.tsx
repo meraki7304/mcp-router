@@ -54,7 +54,7 @@ const FinalCommandDisplay: React.FC<FinalCommandDisplayProps> = React.memo(
     return (
       <div>
         {editedCommand || server.command ? (
-          <div className="bg-muted p-4 rounded-md border shadow-sm">
+          <div className="bg-muted p-4 rounded-md border shadow-xs">
             <ScrollArea className="max-h-[200px]">
               <div className="whitespace-pre-wrap text-sm font-mono text-primary break-all">
                 {finalCommandString}
