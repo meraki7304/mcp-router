@@ -6,7 +6,7 @@
  */
 
 import React, { createContext } from "react";
-import type { PlatformAPI } from "@mcp_router/shared";
+import type { PlatformAPI } from "../types/platform-api/platform-api";
 
 // Create the context
 const PlatformAPIContext = createContext<PlatformAPI | null>(null);

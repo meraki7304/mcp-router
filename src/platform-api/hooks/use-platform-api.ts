@@ -1,10 +1,10 @@
 /**
- * 离线客户端固定使用本地 Electron Platform API。
+ * Tauri 渲染端固定使用本地 TauriPlatformAPI（invoke 翻译层）。
  */
 
-import { electronPlatformAPI } from "../electron-platform-api";
-import type { PlatformAPI } from "@mcp_router/shared";
+import { tauriPlatformAPI } from "../tauri-platform-api";
+import type { PlatformAPI } from "../../types/platform-api/platform-api";
 
 export function usePlatformAPI(): PlatformAPI {
-  return electronPlatformAPI;
+  return tauriPlatformAPI;
 }
