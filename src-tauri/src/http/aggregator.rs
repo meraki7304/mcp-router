@@ -110,26 +110,41 @@ impl ServerHandler for Aggregator {
             )
         })?;
 
-        let running = self
+        // 找到该 server（无论 running 还是 stopped）
+        let server = self
             .server_manager
-            .running_servers()
+            .find_server_by_name(server_name)
             .await
-            .map_err(|e| McpError::internal_error(format!("running_servers: {e}"), None))?;
-
-        let info = running
-            .iter()
-            .find(|i| i.name == server_name)
+            .map_err(|e| {
+                McpError::internal_error(format!("find_server_by_name: {e}"), None)
+            })?
             .ok_or_else(|| {
                 McpError::invalid_request(
-                    format!("server '{server_name}' is not running"),
+                    format!("server '{server_name}' not configured"),
                     None,
                 )
             })?;
 
-        // 拒绝用户禁用的工具
+        if server.disabled {
+            return Err(McpError::invalid_request(
+                format!("server '{server_name}' is disabled"),
+                None,
+            ));
+        }
+
+        // 懒启动：未运行就先 start
+        let status = self.server_manager.status(&server.id).await;
+        if !matches!(status, crate::mcp::status::ServerStatus::Running) {
+            tracing::info!(server_id = %server.id, "lazy-starting server for tool call");
+            self.server_manager.start(&server.id).await.map_err(|e| {
+                McpError::internal_error(format!("lazy start '{server_name}': {e}"), None)
+            })?;
+        }
+
+        // 工具权限过滤
         let perms = self
             .server_manager
-            .tool_permissions(&info.id)
+            .tool_permissions(&server.id)
             .await
             .unwrap_or_default();
         if matches!(perms.get(tool_name), Some(false)) {
@@ -140,7 +155,7 @@ impl ServerHandler for Aggregator {
         }
 
         self.server_manager
-            .call_tool_typed(&info.id, tool_name, request.arguments)
+            .call_tool_typed(&server.id, tool_name, request.arguments)
             .await
             .map_err(|e| {
                 McpError::internal_error(format!("call_tool '{tool_name}': {e}"), None)

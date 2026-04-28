@@ -321,4 +321,14 @@ impl ServerManager {
         let repo = SqliteServerRepository::new(pool);
         repo.get(server_id).await
     }
+
+    /// 按 name 查 server，找不到返回 None。给 Aggregator 懒启动用。
+    pub async fn find_server_by_name(
+        &self,
+        name: &str,
+    ) -> AppResult<Option<Server>> {
+        let pool = self.registry.get_or_init(DEFAULT_WORKSPACE).await?;
+        let repo = SqliteServerRepository::new(pool);
+        repo.find_by_name(name).await
+    }
 }
