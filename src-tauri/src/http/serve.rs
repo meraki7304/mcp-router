@@ -1,8 +1,8 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use axum::{middleware, Json, Router};
 use rmcp::transport::streamable_http_server::{
-    session::local::LocalSessionManager, StreamableHttpService,
+    session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
 };
 use serde_json::json;
 use tokio::net::TcpListener;
@@ -28,6 +28,14 @@ pub fn build_router(
     let server_manager_for_factory = server_manager.clone();
     let shared_config_for_factory = shared_config.clone();
 
+    // 必须 stateful_mode = true：客户端首次 POST 创建 session，后续 tools/call
+    // 与 SSE 重连依赖 session 状态保留。默认（false）下第二次请求会撞 "session not found"。
+    // StreamableHttpServerConfig 是 #[non_exhaustive]，只能 default + 字段赋值。
+    let mut cfg = StreamableHttpServerConfig::default();
+    cfg.stateful_mode = true;
+    cfg.sse_keep_alive = Some(Duration::from_secs(30));
+    cfg.sse_retry = Some(Duration::from_secs(3));
+
     let mcp_service = StreamableHttpService::new(
         move || {
             Ok(Aggregator::new(
@@ -36,7 +44,7 @@ pub fn build_router(
             ))
         },
         LocalSessionManager::default().into(),
-        Default::default(),
+        cfg,
     );
 
     let auth_state = AuthState {
