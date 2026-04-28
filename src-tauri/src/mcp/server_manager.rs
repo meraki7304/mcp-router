@@ -198,26 +198,88 @@ impl ServerManager {
     }
 
     /// Call a tool on a running server. Returns the rmcp `CallToolResult` directly.
+    /// Side effect: best-effort write to `request_logs` table (timing, params, response,
+    /// error). Failures in the log insert are warned but never fail the call.
     pub async fn call_tool_typed(
         &self,
         server_id: &str,
         tool_name: &str,
         arguments: Option<serde_json::Map<String, serde_json::Value>>,
     ) -> AppResult<rmcp::model::CallToolResult> {
-        let clients = self.clients.read().await;
-        let service = clients.get(server_id).ok_or_else(|| {
-            AppError::NotFound(format!("server {server_id} is not running"))
-        })?;
+        let started_at = std::time::Instant::now();
+        let timestamp = chrono::Utc::now();
 
-        let mut req = rmcp::model::CallToolRequestParams::new(tool_name.to_owned());
-        if let Some(args) = arguments {
-            req = req.with_arguments(args);
+        // Cache server name for log row (fail open — empty if lookup errors)
+        let server_name = self
+            .lookup_server(server_id)
+            .await
+            .ok()
+            .flatten()
+            .map(|s| s.name);
+
+        // Run the actual rmcp call inside its own scope so the read lock drops before
+        // we touch the registry to write the log row.
+        let result = {
+            let clients = self.clients.read().await;
+            let service = clients.get(server_id).ok_or_else(|| {
+                AppError::NotFound(format!("server {server_id} is not running"))
+            })?;
+
+            let mut req = rmcp::model::CallToolRequestParams::new(tool_name.to_owned());
+            if let Some(args) = arguments.clone() {
+                req = req.with_arguments(args);
+            }
+
+            service
+                .call_tool(req)
+                .await
+                .map_err(|e| AppError::Upstream(format!("call_tool {tool_name}: {e}")))
+        };
+
+        let duration_ms = started_at.elapsed().as_millis() as i64;
+
+        // Best-effort log insert; never fail the call because logging failed.
+        if let Ok(pool) = self.registry.get_or_init(DEFAULT_WORKSPACE).await {
+            use crate::persistence::{
+                repository::request_log::{
+                    RequestLogRepository, SqliteRequestLogRepository,
+                },
+                types::request_log::NewRequestLog,
+            };
+            let repo = SqliteRequestLogRepository::new(pool);
+
+            let request_params = arguments
+                .as_ref()
+                .map(|a| serde_json::Value::Object(a.clone().into_iter().collect()));
+
+            let response_data = match &result {
+                Ok(r) => serde_json::to_value(r).ok(),
+                Err(_) => None,
+            };
+            let response_status = Some(
+                if result.is_ok() { "ok".to_string() } else { "error".to_string() },
+            );
+            let error_message = result.as_ref().err().map(|e| e.to_string());
+
+            let entry = NewRequestLog {
+                timestamp,
+                client_id: None, // Plan 9d 暂不带 token client_id；Plan 7c 接 token-aware 时再填
+                client_name: None,
+                server_id: Some(server_id.to_string()),
+                server_name,
+                request_type: Some("tools/call".to_string()),
+                request_params,
+                response_data,
+                response_status,
+                duration_ms: Some(duration_ms),
+                error_message,
+            };
+            if let Err(e) = repo.insert(entry).await {
+                tracing::warn!(?e, "failed to insert request log row");
+            }
         }
 
-        service
-            .call_tool(req)
-            .await
-            .map_err(|e| AppError::Upstream(format!("call_tool {tool_name}: {e}")))
+        result
     }
 
     // Internal: fetch a server config from the default workspace's DB.
