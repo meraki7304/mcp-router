@@ -1,12 +1,19 @@
+use std::sync::Arc;
+
+use serde_json::Value;
 use tauri::State;
 
 use crate::{
     error::AppResult,
     persistence::{
-        repository::workflow::{SqliteWorkflowRepository, WorkflowRepository},
+        repository::{
+            hook_module::{HookModuleRepository, SqliteHookModuleRepository},
+            workflow::{SqliteWorkflowRepository, WorkflowRepository},
+        },
         types::workflow::{NewWorkflow, Workflow, WorkflowPatch},
     },
     state::AppState,
+    workflow::executor::WorkflowExecutor,
 };
 
 async fn repo(state: &State<'_, AppState>) -> AppResult<SqliteWorkflowRepository> {
@@ -61,4 +68,23 @@ pub async fn workflows_update(
 #[tauri::command]
 pub async fn workflows_delete(state: State<'_, AppState>, id: String) -> AppResult<bool> {
     repo(&state).await?.delete(&id).await
+}
+
+#[tauri::command]
+pub async fn workflows_execute(
+    state: State<'_, AppState>,
+    id: String,
+    input: Value,
+) -> AppResult<Value> {
+    let pool = state.pool().await?;
+    let workflow = SqliteWorkflowRepository::new(pool.clone())
+        .get(&id)
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("workflow {id}")))?;
+
+    let hooks: Arc<dyn HookModuleRepository> =
+        Arc::new(SqliteHookModuleRepository::new(pool));
+
+    let executor = WorkflowExecutor::new(hooks, state.hook_runtime.clone());
+    executor.execute(&workflow, input).await
 }

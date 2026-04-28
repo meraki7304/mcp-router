@@ -36,8 +36,8 @@ use crate::{
             tokens_update_server_access,
         },
         workflows::{
-            workflows_create, workflows_delete, workflows_get, workflows_list,
-            workflows_list_by_type, workflows_list_enabled, workflows_update,
+            workflows_create, workflows_delete, workflows_execute, workflows_get,
+            workflows_list, workflows_list_by_type, workflows_list_enabled, workflows_update,
         },
     },
     http::serve::spawn_http_server,
@@ -139,6 +139,7 @@ pub fn run() {
             workflows_create,
             workflows_update,
             workflows_delete,
+            workflows_execute,
             hooks_list,
             hooks_get,
             hooks_find_by_name,
