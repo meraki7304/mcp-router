@@ -1,36 +1,19 @@
-import { useState } from "react";
+/**
+ * Tauri 渲染端根组件：包一层 PlatformAPIProvider 后挂 legacy App。
+ *
+ * Plan 9a 桥接：i18n 在此处做 side-effect 初始化；platformAPI 注入 React Context。
+ */
 
-import { ping } from "./platform-api/tauri-platform-api";
+import "./lib/i18n";
+
+import LegacyApp from "./components/App";
+import { PlatformAPIProvider } from "./platform-api/platform-api-context";
+import { tauriPlatformAPI } from "./platform-api/tauri-platform-api";
 
 export default function App() {
-  const [name, setName] = useState("World");
-  const [reply, setReply] = useState<string>("");
-
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui, sans-serif" }}>
-      <h1>MCP Router (Tauri Skeleton)</h1>
-      <p>End-to-end smoke test. Type a name and click Ping.</p>
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{ padding: 6 }}
-        />
-        <button
-          onClick={async () => {
-            try {
-              const out = await ping(name);
-              setReply(out);
-            } catch (err) {
-              setReply(`error: ${String(err)}`);
-            }
-          }}
-          style={{ padding: 6 }}
-        >
-          Ping
-        </button>
-      </div>
-      <pre style={{ marginTop: 16 }}>{reply}</pre>
-    </main>
+    <PlatformAPIProvider platformAPI={tauriPlatformAPI}>
+      <LegacyApp />
+    </PlatformAPIProvider>
   );
 }
