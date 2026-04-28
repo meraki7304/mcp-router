@@ -91,42 +91,60 @@ impl ServerManager {
             .await?
             .ok_or_else(|| AppError::NotFound(format!("server {server_id}")))?;
 
-        if !matches!(server.server_type, ServerType::Local) {
-            return Err(AppError::InvalidInput(format!(
-                "server {server_id} is type {:?}; only Local stdio supported in Plan 6",
-                server.server_type
-            )));
-        }
         if server.disabled {
             return Err(AppError::InvalidInput(format!(
                 "server {server_id} is disabled"
             )));
         }
 
-        let command_str = server
-            .command
-            .as_deref()
-            .ok_or_else(|| AppError::InvalidInput(format!("server {server_id} has no command")))?;
+        let service: RunningService<RoleClient, ()> = match server.server_type {
+            ServerType::Local => {
+                let command_str = server.command.as_deref().ok_or_else(|| {
+                    AppError::InvalidInput(format!("server {server_id} has no command"))
+                })?;
 
-        let mut cmd = Command::new(command_str);
-        cmd.args(&server.args);
-        for (k, v) in &server.env {
-            cmd.env(k, v);
-        }
-        if let Some(cwd) = server.context_path.as_deref() {
-            cmd.current_dir(cwd);
-        }
+                let mut cmd = Command::new(command_str);
+                cmd.args(&server.args);
+                for (k, v) in &server.env {
+                    cmd.env(k, v);
+                }
+                if let Some(cwd) = server.context_path.as_deref() {
+                    cmd.current_dir(cwd);
+                }
 
-        info!(server_id, command = %command_str, "spawning mcp server subprocess");
+                info!(server_id, command = %command_str, "spawning local mcp server subprocess");
 
-        let transport = TokioChildProcess::new(cmd).map_err(|e| {
-            AppError::Upstream(format!("spawn mcp server subprocess: {e}"))
-        })?;
+                let transport = TokioChildProcess::new(cmd).map_err(|e| {
+                    AppError::Upstream(format!("spawn mcp server subprocess: {e}"))
+                })?;
 
-        let service: RunningService<RoleClient, ()> = ()
-            .serve(transport)
-            .await
-            .map_err(|e| AppError::Upstream(format!("rmcp serve: {e}")))?;
+                ()
+                    .serve(transport)
+                    .await
+                    .map_err(|e| AppError::Upstream(format!("rmcp serve (stdio): {e}")))?
+            }
+            ServerType::Remote => {
+                let url = server.remote_url.as_deref().ok_or_else(|| {
+                    AppError::InvalidInput(format!(
+                        "remote server {server_id} has no remote_url"
+                    ))
+                })?;
+
+                info!(server_id, url, "connecting to remote mcp server (streamable http)");
+
+                use rmcp::transport::streamable_http_client::StreamableHttpClientTransport;
+                // NOTE(Plan 9d): bearer_token 还未注入 transport（rmcp 提供 auth_header
+                // builder，但目前先用 URL-only 路径）；后续任务再接 Server.bearer_token。
+                let transport = StreamableHttpClientTransport::from_uri(url.to_string());
+
+                ()
+                    .serve(transport)
+                    .await
+                    .map_err(|e| {
+                        AppError::Upstream(format!("rmcp serve (streamable http): {e}"))
+                    })?
+            }
+        };
 
         // Insert under write lock (re-checking idempotency to handle concurrent starts).
         let mut clients = self.clients.write().await;
