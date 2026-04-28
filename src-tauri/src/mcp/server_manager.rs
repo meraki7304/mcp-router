@@ -285,6 +285,13 @@ impl ServerManager {
         let duration_ms = started_at.elapsed().as_millis() as i64;
 
         // Best-effort log insert; never fail the call because logging failed.
+        eprintln!(
+            "[LOG-DIAG] call_tool_typed completed: server={} tool={} duration_ms={} ok={}",
+            server_id,
+            tool_name,
+            duration_ms,
+            result.is_ok()
+        );
         if let Ok(pool) = self.registry.get_or_init(DEFAULT_WORKSPACE).await {
             use crate::persistence::{
                 repository::request_log::{
@@ -320,9 +327,12 @@ impl ServerManager {
                 duration_ms: Some(duration_ms),
                 error_message,
             };
-            if let Err(e) = repo.insert(entry).await {
-                tracing::warn!(?e, "failed to insert request log row");
+            match repo.insert(entry).await {
+                Ok(row) => eprintln!("[LOG-DIAG] inserted request_log id={}", row.id),
+                Err(e) => eprintln!("[LOG-DIAG] insert FAILED: {e:?}"),
             }
+        } else {
+            eprintln!("[LOG-DIAG] could not get pool for log insert");
         }
 
         result
