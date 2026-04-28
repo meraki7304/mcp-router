@@ -39,7 +39,7 @@ rmcp = { version = "1.5", features = [
     "transport-streamable-http-server",
     "transport-streamable-http-client-reqwest",
 ] }
-ts-rs = { version = "10", features = ["serde-compat", "chrono-impl", "uuid-impl"] }
+ts-rs = { version = "12", features = ["serde-compat", "chrono-impl", "uuid-impl"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "v7", "serde"] }
 
