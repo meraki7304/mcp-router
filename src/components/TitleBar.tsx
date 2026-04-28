@@ -19,9 +19,7 @@ export function TitleBar() {
       {/* macOS 交通灯按钮留白 */}
       <div className={platform === "darwin" ? "w-20" : "w-4"} />
 
-      <div className="flex-1 text-center text-sm font-medium text-muted-foreground select-none">
-        MCP Router
-      </div>
+      <div className="flex-1" />
 
       <div className={platform === "win32" ? "pr-[140px]" : "pr-4"} />
     </div>
