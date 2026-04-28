@@ -6,7 +6,7 @@ import { Outlet } from "react-router-dom";
  */
 const PageLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   return (
-    <div className={`flex flex-col min-h-full w-full p-6`}>
+    <div className={`flex flex-col min-h-full w-full py-6`}>
       {children || <Outlet />}
     </div>
   );

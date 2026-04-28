@@ -110,10 +110,45 @@ function backendServerToRenderer(s: BackendServer): MCPServer {
     required: s.required_params,
     toolPermissions: s.tool_permissions as Record<string, boolean>,
     projectId: s.project_id,
-    // status 在 MCPServer 上是扁平字符串；这里用 stopped 作占位，
-    // 真实状态由 servers.getStatus(id) 单独拉取
+    // status 在 MCPServer 上是扁平字符串；初始 stopped，list/get 会单独 fan-out
+    // 调 servers_get_status 把活状态写回。
     status: "stopped",
   };
+}
+
+// kind ("Stopped"/"Starting"/"Running"/"Failed") → MCPServer.status 字符串
+function backendStatusKindToMcpServerStatus(
+  kind: BackendServerStatus["kind"],
+): MCPServer["status"] {
+  switch (kind) {
+    case "Stopped":
+      return "stopped";
+    case "Starting":
+      return "starting";
+    case "Running":
+      return "running";
+    case "Failed":
+      return "error";
+  }
+}
+
+// 给一批 backend Server 行批量补 live status；用 Promise.all fan-out
+async function attachLiveStatus(rows: BackendServer[]): Promise<MCPServer[]> {
+  return Promise.all(
+    rows.map(async (row) => {
+      const out = backendServerToRenderer(row);
+      try {
+        const backendStatus = await invoke<BackendServerStatus>(
+          "servers_get_status",
+          { id: row.id },
+        );
+        out.status = backendStatusKindToMcpServerStatus(backendStatus.kind);
+      } catch {
+        // 保持默认 stopped
+      }
+      return out;
+    }),
+  );
 }
 
 function rendererStatusFromBackend(
@@ -352,7 +387,7 @@ class TauriPlatformAPI implements PlatformAPI {
   servers: ServerAPI = {
     list: async () => {
       const rows: BackendServer[] = await invoke("servers_list");
-      return rows.map(backendServerToRenderer);
+      return attachLiveStatus(rows);
     },
     listTools: async (id) => {
       const tools: unknown[] = await invoke("servers_list_tools", { id });
@@ -369,7 +404,9 @@ class TauriPlatformAPI implements PlatformAPI {
     },
     get: async (id) => {
       const row: BackendServer | null = await invoke("servers_get", { id });
-      return row ? backendServerToRenderer(row) : null;
+      if (!row) return null;
+      const [withStatus] = await attachLiveStatus([row]);
+      return withStatus;
     },
     create: async (input) => {
       if (!input.config) {
@@ -453,7 +490,7 @@ class TauriPlatformAPI implements PlatformAPI {
       const token: BackendToken = {
         id,
         clientId: appName,
-        issuedAt: BigInt(Date.now()) as unknown as bigint,
+        issuedAt: Date.now() as unknown as bigint,
         serverAccess: {},
       };
       await invoke("tokens_save", { token });
@@ -527,7 +564,7 @@ class TauriPlatformAPI implements PlatformAPI {
         const token: BackendToken = {
           id,
           clientId: options.name,
-          issuedAt: BigInt(Date.now()) as unknown as bigint,
+          issuedAt: Date.now() as unknown as bigint,
           serverAccess: {},
         };
         await invoke("tokens_save", { token });
