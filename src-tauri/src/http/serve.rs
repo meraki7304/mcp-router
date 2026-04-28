@@ -1,9 +1,10 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use axum::{middleware, Router};
+use axum::{middleware, Json, Router};
 use rmcp::transport::streamable_http_server::{
     session::local::LocalSessionManager, StreamableHttpService,
 };
+use serde_json::json;
 use tokio::net::TcpListener;
 use tracing::{error, info};
 
@@ -42,8 +43,15 @@ pub fn build_router(
         shared_config: shared_config.clone(),
     };
 
+    // /health 用闭包捕获 server_manager，避免 Router 与 mcp 子服务的 state 类型冲突
+    let sm_for_health = server_manager.clone();
+    let health_route = axum::routing::get(move || {
+        let sm = sm_for_health.clone();
+        async move { health_response(sm).await }
+    });
+
     Router::new()
-        .route("/health", axum::routing::get(|| async { "ok" }))
+        .route("/health", health_route)
         .nest_service(
             "/mcp",
             tower::ServiceBuilder::new()
@@ -53,6 +61,26 @@ pub fn build_router(
                 ))
                 .service(mcp_service),
         )
+}
+
+/// Build the /health JSON payload: hub state + per-running-server status.
+async fn health_response(server_manager: Arc<ServerManager>) -> Json<serde_json::Value> {
+    let running = server_manager.running_servers().await.unwrap_or_default();
+    let mut servers = Vec::with_capacity(running.len());
+    for info in running {
+        let status = server_manager.status(&info.id).await;
+        servers.push(json!({
+            "id": info.id,
+            "name": info.name,
+            "status": status,
+        }));
+    }
+    let count = servers.len();
+    Json(json!({
+        "state": "ready",
+        "servers": servers,
+        "running_count": count,
+    }))
 }
 
 /// Spawn the HTTP server on `127.0.0.1:3282` as a tokio task. Returns immediately after binding.
