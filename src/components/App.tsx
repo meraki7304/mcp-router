@@ -80,7 +80,7 @@ const App: React.FC = () => {
 
       <SidebarComponent />
       <main className="flex flex-col flex-1 w-full min-w-0 overflow-auto">
-        <div className="flex flex-col flex-1 pt-8">
+        <div className="flex flex-col flex-1 pt-2">
           <Routes>
             <Route element={<PageLayout />}>
               <Route path="/" element={<Navigate to="/servers" replace />} />
