@@ -17,12 +17,15 @@ use crate::{
 
 /// MCP server that aggregates tools from all servers managed by `ServerManager`.
 ///
-/// Plan 7 ships a stub: `list_tools` returns empty, `call_tool` errors. Plan 7b wires real aggregation.
+/// Plan 7b: real aggregation. `list_tools` walks every running server and merges their
+/// tools, prefixing names with `<server-name>__`. `call_tool` parses the prefix and
+/// routes to the right backend server.
+///
+/// Per-token ACL (filtering by `Token.serverAccess`) is deferred to Plan 7c.
 #[derive(Clone)]
 pub struct Aggregator {
-    #[allow(dead_code)] // used in Plan 7b
     pub server_manager: Arc<ServerManager>,
-    #[allow(dead_code)] // available for future per-aggregation telemetry
+    #[allow(dead_code)] // used in Plan 7c for per-token ACL
     pub shared_config: Arc<SharedConfigStore>,
 }
 
@@ -40,15 +43,16 @@ impl Aggregator {
 
 impl ServerHandler for Aggregator {
     fn get_info(&self) -> ServerInfo {
-        let server_info = Implementation::new("mcp-router-aggregator", env!("CARGO_PKG_VERSION"))
-            .with_title("MCP Router");
-
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
             .with_protocol_version(ProtocolVersion::V_2025_03_26)
-            .with_server_info(server_info)
+            .with_server_info(
+                Implementation::new("mcp-router-aggregator", env!("CARGO_PKG_VERSION"))
+                    .with_title("MCP Router"),
+            )
             .with_instructions(
-                "MCP Router aggregates tools across configured servers. \
-                 Plan 7 ships a stub (no tools); Plan 7b wires real aggregation.",
+                "MCP Router aggregates tools across configured local servers. \
+                 Tool names are prefixed with `<server-name>__` so callers can identify the \
+                 backing server. Plan 7c will add per-token server-access filtering.",
             )
     }
 
@@ -57,8 +61,29 @@ impl ServerHandler for Aggregator {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, McpError> {
-        // Plan 7b: collect tools from each running ServerManager client and prefix names.
-        Ok(ListToolsResult::with_all_items(vec![]))
+        let running = self
+            .server_manager
+            .running_servers()
+            .await
+            .map_err(|e| McpError::internal_error(format!("running_servers: {e}"), None))?;
+
+        let mut all = Vec::new();
+        for info in running {
+            // Per-server failures don't kill the whole list — log + skip.
+            let tools = match self.server_manager.list_tools_typed(&info.id).await {
+                Ok(t) => t,
+                Err(e) => {
+                    tracing::warn!(server_id = %info.id, error = %e, "list_tools_typed failed; skipping server");
+                    continue;
+                }
+            };
+            for mut tool in tools {
+                tool.name = std::borrow::Cow::Owned(format!("{}__{}", info.name, tool.name));
+                all.push(tool);
+            }
+        }
+
+        Ok(ListToolsResult::with_all_items(all))
     }
 
     async fn call_tool(
@@ -66,12 +91,37 @@ impl ServerHandler for Aggregator {
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
-        Err(McpError::invalid_request(
-            format!(
-                "tool '{}' not found — Plan 7 aggregator is a stub (Plan 7b adds routing)",
-                request.name
-            ),
-            None,
-        ))
+        let (server_name, tool_name) = request.name.split_once("__").ok_or_else(|| {
+            McpError::invalid_request(
+                format!(
+                    "tool name '{}' is not in '<server-name>__<tool-name>' form",
+                    request.name
+                ),
+                None,
+            )
+        })?;
+
+        let running = self
+            .server_manager
+            .running_servers()
+            .await
+            .map_err(|e| McpError::internal_error(format!("running_servers: {e}"), None))?;
+
+        let info = running
+            .iter()
+            .find(|i| i.name == server_name)
+            .ok_or_else(|| {
+                McpError::invalid_request(
+                    format!("server '{server_name}' is not running"),
+                    None,
+                )
+            })?;
+
+        self.server_manager
+            .call_tool_typed(&info.id, tool_name, request.arguments)
+            .await
+            .map_err(|e| {
+                McpError::internal_error(format!("call_tool '{tool_name}': {e}"), None)
+            })
     }
 }
