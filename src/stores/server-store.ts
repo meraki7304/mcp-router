@@ -165,7 +165,11 @@ export const createServerStore = (
     },
 
     refreshServers: async () => {
-      const { setLoading, setError, setServers } = get();
+      const { setLoading, setError, setServers, isLoading } = get();
+
+      // 防重入：避免 3s 轮询 + 事件触发 + 用户操作叠加产生 N 个 in-flight
+      // list 调用（每个 list 又 fan-out N 次 getStatus，请求量是 N×M）。
+      if (isLoading) return;
 
       try {
         setLoading(true);

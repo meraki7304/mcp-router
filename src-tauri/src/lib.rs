@@ -214,6 +214,53 @@ pub fn run() {
                 state
                     .server_manager
                     .set_event_sink(Box::new(TauriStatusSink::new(handle.clone())));
+
+                // 周期裁剪 request_logs：每 5 分钟读 settings.maxRequestLogRows 一次，
+                // 调 RequestLogRepository::trim_to_max 把最旧的多余行删掉。
+                // 防止 sqlite 文件无限增长。
+                {
+                    let registry_for_trim = state.registry.clone();
+                    let shared_config_for_trim = state.shared_config.clone();
+                    tauri::async_runtime::spawn(async move {
+                        use crate::persistence::repository::request_log::{
+                            RequestLogRepository, SqliteRequestLogRepository,
+                        };
+                        let mut interval = tokio::time::interval(
+                            std::time::Duration::from_secs(5 * 60),
+                        );
+                        // 跳过第一次立即触发（启动时刚扫完 auto_start）
+                        interval.tick().await;
+                        loop {
+                            interval.tick().await;
+                            let max_rows = shared_config_for_trim
+                                .get_settings()
+                                .await
+                                .max_request_log_rows
+                                .unwrap_or(50_000);
+                            let pool = match registry_for_trim
+                                .get_or_init(DEFAULT_WORKSPACE)
+                                .await
+                            {
+                                Ok(p) => p,
+                                Err(err) => {
+                                    tracing::warn!(?err, "trim job: get pool failed");
+                                    continue;
+                                }
+                            };
+                            let repo = SqliteRequestLogRepository::new(pool);
+                            match repo.trim_to_max(max_rows).await {
+                                Ok(0) => {}
+                                Ok(deleted) => {
+                                    info!(deleted, max_rows, "request_logs trimmed");
+                                }
+                                Err(err) => {
+                                    tracing::warn!(?err, "trim_to_max failed");
+                                }
+                            }
+                        }
+                    });
+                }
+
                 handle.manage(state);
                 info!("AppState initialized (registry + shared_config + server_manager seeded; HTTP server on 127.0.0.1:3282)");
             });

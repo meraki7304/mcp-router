@@ -62,20 +62,29 @@ const App: React.FC = () => {
   }, [refreshServers]);
 
   // 监听后端 server-status-changed 事件，立即刷一次（替代/补充 3 秒轮询）
+  // 防泄露：cleanup 可能比 listen() promise 先 resolve，原写法那样 unlisten
+  // 是 undefined，listener 永不解绑（StrictMode 双挂载/HMR 累加）。
+  // 这里用 cancelled flag + 等 promise 决议后再调 unlisten。
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    (async () => {
+    let cancelled = false;
+    const unlistenPromise = (async () => {
       try {
         const { listen } = await import("@tauri-apps/api/event");
-        unlisten = await listen("server-status-changed", () => {
-          refreshServers().catch(() => {});
+        return await listen("server-status-changed", () => {
+          if (!cancelled) refreshServers().catch(() => {});
         });
       } catch (e) {
         console.error("listen server-status-changed failed", e);
+        return undefined;
       }
     })();
     return () => {
-      if (unlisten) unlisten();
+      cancelled = true;
+      unlistenPromise
+        .then((unlisten) => {
+          if (unlisten) unlisten();
+        })
+        .catch(() => {});
     };
   }, [refreshServers]);
 
