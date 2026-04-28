@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   publish:
-    name: Publish (${{ matrix.label }})
+    name: Build & Publish (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -19,20 +19,17 @@ jobs:
         include:
           - os: macos-latest
             label: macOS
+            args: "--target universal-apple-darwin"
           - os: windows-latest
             label: Windows
-    env:
-      CI: true
-      # electron-builder 需要 GH_TOKEN 上传到 GitHub Releases；
-      # GitHub Actions 自动注入的 GITHUB_TOKEN 即可
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            args: ""
+          - os: ubuntu-22.04
+            label: Linux
+            args: ""
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
@@ -45,21 +42,37 @@ jobs:
           node-version: "22"
           cache: pnpm
 
-      - name: Install dependencies
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Cargo cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install Linux deps
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install JS deps
         run: pnpm install --frozen-lockfile
 
-      - name: Publish to GitHub Releases
-        run: pnpm --filter mcp-router-electron run publish
-
-      - name: Upload build artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Build & sign & upload to release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          name: release-${{ matrix.label }}
-          path: |
-            apps/electron/dist/*.dmg
-            apps/electron/dist/*.zip
-            apps/electron/dist/*.exe
-            apps/electron/dist/*.blockmap
-            apps/electron/dist/latest*.yml
-          if-no-files-found: warn
+          tagName: ${{ github.ref_name }}
+          releaseName: "MCP Router ${{ github.ref_name }}"
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+          # tauri-action 自动生成 latest.json 并附到 release，前提是
+          # tauri.conf.json 里 bundle.createUpdaterArtifacts = true（已开）
+          updaterJsonPreferNsis: true

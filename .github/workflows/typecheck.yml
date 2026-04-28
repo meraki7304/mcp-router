@@ -5,29 +5,42 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  typecheck-and-knip:
+  frontend:
+    name: Frontend (tsc + vite build)
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
         with:
           version: 10
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'pnpm'
-          
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        
-      - name: Build shared package
-        run: pnpm --filter @mcp_router/shared build
-        
-      - name: Run typecheck
-        run: pnpm run typecheck
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+  rust:
+    name: Rust (cargo check)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install Linux deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: cargo check
+        working-directory: src-tauri
+        run: cargo check --all-targets
