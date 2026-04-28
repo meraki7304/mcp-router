@@ -301,9 +301,15 @@ impl ServerManager {
             };
             let repo = SqliteRequestLogRepository::new(pool);
 
-            let request_params = arguments
-                .as_ref()
-                .map(|a| serde_json::Value::Object(a.clone().into_iter().collect()));
+            // 写 MCP CallToolRequestParams 整体形态 {name, arguments} —— renderer 的
+            // useActivityData 从 requestParams.name 读工具名、requestParams.arguments
+            // 读参数。直接存 arguments map 会让 UI 显示 "unknown" + "-"。
+            let request_params = Some(serde_json::json!({
+                "name": tool_name,
+                "arguments": arguments.as_ref().map(|a| {
+                    serde_json::Value::Object(a.clone().into_iter().collect())
+                }),
+            }));
 
             let response_data = match &result {
                 Ok(r) => serde_json::to_value(r).ok(),
