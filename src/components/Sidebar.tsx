@@ -9,8 +9,8 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { usePlatformAPI } from "@/renderer/platform-api";
-// @ts-expect-error: Webpack file-loader provides typing for image assets at runtime
-import iconImage from "../../../public/images/icon/icon.png";
+// Vite serves `public/` at the web root — reference the URL directly.
+const iconImage = "/images/icon/icon.png";
 import {
   Sidebar,
   SidebarContent,
