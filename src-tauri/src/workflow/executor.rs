@@ -5,6 +5,7 @@ use serde_json::Value;
 
 use crate::{
     error::{AppError, AppResult},
+    mcp::server_manager::ServerManager,
     persistence::{
         repository::hook_module::HookModuleRepository,
         types::workflow::Workflow,
@@ -40,17 +41,33 @@ struct HookNodeData {
     hook_id: String,
 }
 
+/// MCP-call-node-specific data shape.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct McpCallNodeData {
+    server_id: String,
+    tool_name: String,
+    #[serde(default)]
+    args: Value,
+}
+
 pub struct WorkflowExecutor {
     hooks: Arc<dyn HookModuleRepository>,
     hook_runtime: Arc<HookRuntime>,
+    server_manager: Arc<ServerManager>,
 }
 
 impl WorkflowExecutor {
     pub fn new(
         hooks: Arc<dyn HookModuleRepository>,
         hook_runtime: Arc<HookRuntime>,
+        server_manager: Arc<ServerManager>,
     ) -> Self {
-        Self { hooks, hook_runtime }
+        Self {
+            hooks,
+            hook_runtime,
+            server_manager,
+        }
     }
 
     /// Execute the workflow as a linear chain Start → ... → End. Errors if multiple Start nodes,
@@ -148,10 +165,35 @@ impl WorkflowExecutor {
                     )))?;
                 self.hook_runtime.evaluate(hook.script, state).await
             }
-            "mcp-call" => Err(AppError::Internal(format!(
-                "node {} is mcp-call — not implemented in Plan 8b (Plan 8c)",
-                node.id
-            ))),
+            "mcp-call" => {
+                let data: McpCallNodeData = serde_json::from_value(node.data.clone())
+                    .map_err(|e| AppError::InvalidInput(format!(
+                        "node {} has invalid mcp-call data: {e}",
+                        node.id
+                    )))?;
+
+                // Coerce args (Value) to Option<Map> as expected by call_tool_typed.
+                let arguments = match data.args {
+                    Value::Null => None,
+                    Value::Object(map) => Some(map),
+                    other => {
+                        return Err(AppError::InvalidInput(format!(
+                            "node {} mcp-call args must be a JSON object, got: {other:?}",
+                            node.id
+                        )));
+                    }
+                };
+
+                let result = self
+                    .server_manager
+                    .call_tool_typed(&data.server_id, &data.tool_name, arguments)
+                    .await?;
+
+                // CallToolResult → JSON Value via Serialize.
+                serde_json::to_value(&result).map_err(|e| {
+                    AppError::Internal(format!("encode CallToolResult: {e}"))
+                })
+            }
             other => Err(AppError::InvalidInput(format!(
                 "node {} has unknown type {other:?}",
                 node.id

@@ -85,6 +85,10 @@ pub async fn workflows_execute(
     let hooks: Arc<dyn HookModuleRepository> =
         Arc::new(SqliteHookModuleRepository::new(pool));
 
-    let executor = WorkflowExecutor::new(hooks, state.hook_runtime.clone());
+    let executor = WorkflowExecutor::new(
+        hooks,
+        state.hook_runtime.clone(),
+        state.server_manager.clone(),
+    );
     executor.execute(&workflow, input).await
 }

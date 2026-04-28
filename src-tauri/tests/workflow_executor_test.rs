@@ -3,8 +3,10 @@ use std::sync::Arc;
 use serde_json::json;
 
 use mcp_router_lib::{
+    mcp::server_manager::ServerManager,
     persistence::{
         pool::init_pool_at_path,
+        registry::WorkspacePoolRegistry,
         repository::{
             hook_module::{HookModuleRepository, SqliteHookModuleRepository},
             workflow::{SqliteWorkflowRepository, WorkflowRepository},
@@ -31,9 +33,12 @@ async fn make_setup() -> (
     let workflows = SqliteWorkflowRepository::new(pool.clone());
     let hooks = SqliteHookModuleRepository::new(pool.clone());
     let hook_runtime = Arc::new(HookRuntime::new().expect("runtime"));
+    let registry = Arc::new(WorkspacePoolRegistry::new(tmp.path().to_path_buf()));
+    let server_manager = Arc::new(ServerManager::new(registry));
     let executor = WorkflowExecutor::new(
         Arc::new(SqliteHookModuleRepository::new(pool.clone())),
         hook_runtime.clone(),
+        server_manager,
     );
     (tmp, workflows, hooks, hook_runtime, executor)
 }
@@ -194,7 +199,7 @@ async fn execute_errors_when_hook_missing_id() {
 }
 
 #[tokio::test]
-async fn execute_errors_on_mcp_call_node_in_plan_8b() {
+async fn execute_errors_on_mcp_call_when_server_not_running() {
     let (_tmp, workflows, _hooks, _rt, executor) = make_setup().await;
     let wf = workflows
         .create(NewWorkflow {
@@ -203,7 +208,11 @@ async fn execute_errors_on_mcp_call_node_in_plan_8b() {
             workflow_type: None,
             nodes: json!([
                 { "id": "s", "type": "start", "data": {} },
-                { "id": "m", "type": "mcp-call", "data": { "serverId": "x", "toolName": "y", "args": {} } },
+                { "id": "m", "type": "mcp-call", "data": {
+                    "serverId": "nonexistent-server-id",
+                    "toolName": "any",
+                    "args": {}
+                } },
                 { "id": "e", "type": "end", "data": {} }
             ]),
             edges: json!([
@@ -217,5 +226,8 @@ async fn execute_errors_on_mcp_call_node_in_plan_8b() {
     let result = executor.execute(&wf, json!({})).await;
     assert!(result.is_err());
     let msg = format!("{:?}", result.unwrap_err());
-    assert!(msg.to_lowercase().contains("mcp"));
+    assert!(
+        msg.to_lowercase().contains("not running") || msg.to_lowercase().contains("notfound"),
+        "expected 'not running' or 'NotFound' in error, got: {msg}"
+    );
 }
