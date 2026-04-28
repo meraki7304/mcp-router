@@ -45,12 +45,37 @@ use crate::{
         },
     },
     http::serve::spawn_http_server,
-    mcp::server_manager::ServerManager,
+    mcp::{
+        server_manager::{ServerManager, StatusEventSink},
+        status::ServerStatus,
+    },
     persistence::registry::{WorkspacePoolRegistry, DEFAULT_WORKSPACE},
     shared_config::store::SharedConfigStore,
     state::AppState,
     workflow::hook_runtime::HookRuntime,
 };
+
+/// Tauri-backed implementation of `StatusEventSink`. Wraps an `AppHandle` and uses
+/// `tauri::Emitter` to push `server-status-changed` events to the frontend.
+struct TauriStatusSink {
+    handle: tauri::AppHandle,
+}
+
+impl TauriStatusSink {
+    fn new(handle: tauri::AppHandle) -> Self {
+        Self { handle }
+    }
+}
+
+impl StatusEventSink for TauriStatusSink {
+    fn emit_status_change(&self, server_id: &str, status: &ServerStatus) {
+        use tauri::Emitter;
+        let payload = serde_json::json!({ "id": server_id, "status": status });
+        if let Err(e) = self.handle.emit("server-status-changed", payload) {
+            tracing::warn!(?e, "emit server-status-changed failed");
+        }
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -186,7 +211,9 @@ pub fn run() {
                     error!(?err, "failed to spawn MCP HTTP server (continuing without it)");
                 }
 
-                state.server_manager.set_app_handle(handle.clone());
+                state
+                    .server_manager
+                    .set_event_sink(Box::new(TauriStatusSink::new(handle.clone())));
                 handle.manage(state);
                 info!("AppState initialized (registry + shared_config + server_manager seeded; HTTP server on 127.0.0.1:3282)");
             });

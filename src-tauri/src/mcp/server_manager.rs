@@ -6,7 +6,6 @@ use rmcp::{
     RoleClient, ServiceExt,
 };
 use serde_json::Value;
-use tauri::AppHandle;
 use tokio::{process::Command, sync::RwLock};
 use tracing::{info, warn};
 
@@ -28,10 +27,22 @@ pub struct RunningServerInfo {
     pub name: String,
 }
 
+/// Abstract sink for server-status-changed events. Concrete impl in `lib.rs` wraps
+/// the real `tauri::AppHandle` (via `tauri::Emitter`); tests can leave the field empty.
+///
+/// Keeping the trait here (not pulling `tauri::AppHandle` into the lib's public surface)
+/// avoids leaking tauri's WinAPI subclassing/manifest dependencies into the test
+/// binaries that link `mcp_router_lib` — that surface causes
+/// `STATUS_ENTRYPOINT_NOT_FOUND (0xC0000139)` on Windows when test bins run without
+/// the Common Controls v6 activation context.
+pub trait StatusEventSink: Send + Sync + 'static {
+    fn emit_status_change(&self, server_id: &str, status: &ServerStatus);
+}
+
 pub struct ServerManager {
     registry: Arc<WorkspacePoolRegistry>,
     clients: RwLock<HashMap<String, RunningService<RoleClient, ()>>>,
-    app_handle: OnceLock<AppHandle>,
+    event_sink: OnceLock<Box<dyn StatusEventSink>>,
 }
 
 impl ServerManager {
@@ -39,22 +50,18 @@ impl ServerManager {
         Self {
             registry,
             clients: RwLock::new(HashMap::new()),
-            app_handle: OnceLock::new(),
+            event_sink: OnceLock::new(),
         }
     }
 
-    /// Setup 阶段调一次：把 AppHandle 注入进来，以便后续 emit 事件
-    pub fn set_app_handle(&self, handle: AppHandle) {
-        let _ = self.app_handle.set(handle);
+    /// Setup 阶段调一次：注入事件发送实现（生产环境是 tauri::AppHandle 包装；测试可不注入）。
+    pub fn set_event_sink(&self, sink: Box<dyn StatusEventSink>) {
+        let _ = self.event_sink.set(sink);
     }
 
     fn emit_status_change(&self, server_id: &str, status: &ServerStatus) {
-        use tauri::Emitter;
-        if let Some(handle) = self.app_handle.get() {
-            let payload = serde_json::json!({ "id": server_id, "status": status });
-            if let Err(e) = handle.emit("server-status-changed", payload) {
-                tracing::warn!(?e, "emit server-status-changed failed");
-            }
+        if let Some(sink) = self.event_sink.get() {
+            sink.emit_status_change(server_id, status);
         }
     }
 
