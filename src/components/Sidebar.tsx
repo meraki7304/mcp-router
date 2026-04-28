@@ -9,8 +9,6 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { usePlatformAPI } from "@/renderer/platform-api";
-// Vite serves `public/` at the web root — reference the URL directly.
-const iconImage = "/images/icon/icon.png";
 import {
   Sidebar,
   SidebarContent,
@@ -67,7 +65,6 @@ const SidebarComponent: React.FC = () => {
           to="/apps/electron/public"
           className="flex items-center no-underline px-2 py-1"
         >
-          <img src={iconImage} className="w-8 h-8 mr-3" alt="Logo" />
           <h1 className="text-xl font-bold tracking-tight">
             {t("home.title")}
           </h1>
