@@ -77,7 +77,16 @@ impl ServerHandler for Aggregator {
                     continue;
                 }
             };
+            // 按该服务器的 tool_permissions 过滤：value=false 即用户禁用，跳过。
+            let perms = self
+                .server_manager
+                .tool_permissions(&info.id)
+                .await
+                .unwrap_or_default();
             for mut tool in tools {
+                if matches!(perms.get(tool.name.as_ref()), Some(false)) {
+                    continue;
+                }
                 tool.name = std::borrow::Cow::Owned(format!("{}__{}", info.name, tool.name));
                 all.push(tool);
             }
@@ -116,6 +125,19 @@ impl ServerHandler for Aggregator {
                     None,
                 )
             })?;
+
+        // 拒绝用户禁用的工具
+        let perms = self
+            .server_manager
+            .tool_permissions(&info.id)
+            .await
+            .unwrap_or_default();
+        if matches!(perms.get(tool_name), Some(false)) {
+            return Err(McpError::invalid_request(
+                format!("tool '{tool_name}' is disabled on server '{server_name}'"),
+                None,
+            ));
+        }
 
         self.server_manager
             .call_tool_typed(&info.id, tool_name, request.arguments)

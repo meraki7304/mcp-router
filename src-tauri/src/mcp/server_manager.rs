@@ -221,6 +221,18 @@ impl ServerManager {
     }
 
     // Internal: fetch a server config from the default workspace's DB.
+    /// 暴露给 Aggregator 用：拿到指定 server 的 tool_permissions 表。
+    /// `Some(false)` = 用户在 UI 显式禁用；其它（不存在 / Some(true)）= 启用。
+    pub async fn tool_permissions(
+        &self,
+        server_id: &str,
+    ) -> AppResult<HashMap<String, bool>> {
+        match self.lookup_server(server_id).await? {
+            Some(s) => Ok(s.tool_permissions),
+            None => Ok(HashMap::new()),
+        }
+    }
+
     async fn lookup_server(&self, server_id: &str) -> AppResult<Option<Server>> {
         let pool = self.registry.get_or_init(DEFAULT_WORKSPACE).await?;
         let repo = SqliteServerRepository::new(pool);
