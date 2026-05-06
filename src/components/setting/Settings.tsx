@@ -33,6 +33,7 @@ const Settings: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState<boolean>(true);
   const [showWindowOnStartup, setShowWindowOnStartup] = useState<boolean>(true);
+  const [autoStartEnabled, setAutoStartEnabled] = useState<boolean>(false);
   const [lightweightMode, setLightweightMode] = useState<boolean>(false);
   const [serverIdleStopMinutes, setServerIdleStopMinutes] =
     useState<number>(0);
@@ -62,6 +63,13 @@ const Settings: React.FC = () => {
         setServerIdleStopMinutes(settings.serverIdleStopMinutes ?? 0);
       } catch {
         console.log("Failed to load settings, using defaults");
+      }
+      // autostart 状态以系统注册项为准（用户可能从外部禁用启动项），不依赖 settings 缓存
+      try {
+        const enabled = await platformAPI.settings.isAutoStartEnabled();
+        setAutoStartEnabled(enabled);
+      } catch (error) {
+        console.error("Failed to read autostart status:", error);
       }
     };
     loadSettings();
@@ -96,6 +104,30 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error("Failed to save startup visibility settings:", error);
       setShowWindowOnStartup(!checked);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleAutoStartToggle = async (checked: boolean) => {
+    // 先乐观更新；失败再回滚（与系统注册项的真实状态保持一致）
+    setAutoStartEnabled(checked);
+    setIsSavingSettings(true);
+    try {
+      if (checked) {
+        await platformAPI.settings.enableAutoStart();
+      } else {
+        await platformAPI.settings.disableAutoStart();
+      }
+      // 写一份到 settings 仅作前端显示缓存；权威状态以插件 is_enabled 为准
+      const currentSettings = await platformAPI.settings.get();
+      await platformAPI.settings.save({
+        ...currentSettings,
+        autoStartEnabled: checked,
+      });
+    } catch (error) {
+      console.error("Failed to toggle autostart:", error);
+      setAutoStartEnabled(!checked);
     } finally {
       setIsSavingSettings(false);
     }
@@ -338,6 +370,22 @@ const Settings: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <label className="text-sm font-medium">
+                {t("settings.autoStart")}
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {t("settings.autoStartDescription")}
+              </p>
+            </div>
+            <Switch
+              checked={autoStartEnabled}
+              onCheckedChange={handleAutoStartToggle}
+              disabled={isSavingSettings}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <label className="text-sm font-medium">
                 {t("settings.showWindowOnStartup")}
               </label>
               <p className="text-xs text-muted-foreground">
@@ -347,7 +395,7 @@ const Settings: React.FC = () => {
             <Switch
               checked={showWindowOnStartup}
               onCheckedChange={handleStartupVisibilityToggle}
-              disabled={isSavingSettings}
+              disabled={isSavingSettings || !autoStartEnabled}
             />
           </div>
 

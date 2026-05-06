@@ -34,6 +34,8 @@ pub struct AppSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub show_window_on_startup: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_start_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<Theme>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lightweight_mode: Option<bool>,
@@ -50,6 +52,7 @@ impl Default for AppSettings {
             package_manager_overlay_display_count: Some(0),
             auto_update_enabled: Some(true),
             show_window_on_startup: Some(true),
+            auto_start_enabled: Some(false),
             theme: Some(Theme::System),
             lightweight_mode: Some(false),
             server_idle_stop_minutes: Some(0),

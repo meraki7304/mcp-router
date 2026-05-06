@@ -306,6 +306,7 @@ function backendSettingsToRenderer(
       s.packageManagerOverlayDisplayCount ?? undefined,
     autoUpdateEnabled: s.autoUpdateEnabled ?? undefined,
     showWindowOnStartup: s.showWindowOnStartup ?? undefined,
+    autoStartEnabled: s.autoStartEnabled ?? undefined,
     theme: s.theme ?? undefined,
     lightweightMode: s.lightweightMode ?? undefined,
     serverIdleStopMinutes: s.serverIdleStopMinutes ?? undefined,
@@ -325,6 +326,7 @@ function rendererSettingsToBackend(
       s.packageManagerOverlayDisplayCount ?? null,
     autoUpdateEnabled: s.autoUpdateEnabled ?? null,
     showWindowOnStartup: s.showWindowOnStartup ?? null,
+    autoStartEnabled: s.autoStartEnabled ?? null,
     theme: s.theme ?? null,
     lightweightMode: s.lightweightMode ?? null,
     serverIdleStopMinutes: s.serverIdleStopMinutes ?? null,
@@ -700,6 +702,15 @@ class TauriPlatformAPI implements PlatformAPI {
       };
       await invoke("settings_update", { settings: next });
       return { success: true, count: newCount };
+    },
+    isAutoStartEnabled: async () => {
+      return await invoke<boolean>("autostart_is_enabled");
+    },
+    enableAutoStart: async () => {
+      await invoke("autostart_enable");
+    },
+    disableAutoStart: async () => {
+      await invoke("autostart_disable");
     },
   };
 

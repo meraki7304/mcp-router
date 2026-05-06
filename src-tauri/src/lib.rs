@@ -17,6 +17,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 use crate::{
     commands::{
+        autostart::{autostart_disable, autostart_enable, autostart_is_enabled},
         hook_runtime::hooks_run,
         hooks::{
             hooks_create, hooks_delete, hooks_find_by_name, hooks_get, hooks_list, hooks_update,
@@ -87,6 +88,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--silent"]),
+        ))
         .on_window_event(|window, event| {
             // 关闭按钮：拦下 close，改为隐藏到托盘；下次从托盘点回来 show()。
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -95,6 +100,9 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            // 命令行：开机自启路径会带 --silent，决定是否显示主窗口。
+            let silent_start = std::env::args().any(|a| a == "--silent");
+
             // 托盘图标 + 菜单（显示主窗口 / 退出）。Single-click 也呼出主窗口。
             let show_item =
                 MenuItem::with_id(app, "show", "显示 MCP Router", true, None::<&str>)?;
@@ -138,13 +146,25 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()
                 .expect("resolve app data dir");
 
             let handle = app.handle().clone();
+
+            // 非静默启动（手动双击/快捷方式）：立即显示窗口，不等任何异步初始化，
+            // 避免双击图标后白屏几百毫秒的体感。
+            if !silent_start {
+                if let Some(window) = handle.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+
             tauri::async_runtime::spawn(async move {
+                // 1. 打开 SharedConfigStore（轻量 IO）
                 let shared_config_path = app_data_dir.join("shared-config.json");
                 let shared_config = match SharedConfigStore::open(shared_config_path).await {
                     Ok(s) => s,
@@ -154,6 +174,23 @@ pub fn run() {
                     }
                 };
 
+                // 2. 静默启动路径：根据 showWindowOnStartup 决定是否露面。
+                //    默认 true，与"开机自启时显示主窗口"开关含义一致。
+                if silent_start {
+                    let show_window = shared_config
+                        .get_settings()
+                        .await
+                        .show_window_on_startup
+                        .unwrap_or(true);
+                    if show_window {
+                        if let Some(window) = handle.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                }
+
+                // 3. 必要的核心组件（尽量轻量，让 manage 早点发生）
                 let registry = std::sync::Arc::new(WorkspacePoolRegistry::new(app_data_dir));
                 if let Err(err) = registry.get_or_init(DEFAULT_WORKSPACE).await {
                     error!(?err, "failed to seed default workspace pool");
@@ -161,41 +198,6 @@ pub fn run() {
                 }
 
                 let server_manager = ServerManager::new(registry.clone());
-
-                // 启动时扫描配置 auto_start=true 且未 disabled 的服务器并自动拉起。
-                // 失败逐个记日志，不阻塞 AppState 构建（一台跑不起来不应该影响其他能力）。
-                if let Ok(pool) = registry.get_or_init(DEFAULT_WORKSPACE).await {
-                    use crate::persistence::repository::server::{
-                        ServerRepository, SqliteServerRepository,
-                    };
-                    let repo = SqliteServerRepository::new(pool);
-                    match repo.list().await {
-                        Ok(servers) => {
-                            for s in servers {
-                                if s.auto_start && !s.disabled {
-                                    if let Err(err) = server_manager.start(&s.id).await {
-                                        tracing::warn!(
-                                            server_id = %s.id,
-                                            server_name = %s.name,
-                                            ?err,
-                                            "auto-start failed"
-                                        );
-                                    } else {
-                                        info!(
-                                            server_id = %s.id,
-                                            server_name = %s.name,
-                                            "auto-start ok"
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                        Err(err) => {
-                            tracing::warn!(?err, "auto-start scan: list servers failed");
-                        }
-                    }
-                }
-
                 let hook_runtime = match HookRuntime::new() {
                     Ok(rt) => rt,
                     Err(err) => {
@@ -205,30 +207,90 @@ pub fn run() {
                 };
 
                 let state = AppState::new(registry, shared_config, server_manager, hook_runtime);
-
-                // Spawn the HTTP server BEFORE manage so we can use the components.
-                let server_manager_arc = state.server_manager.clone();
-                let shared_config_arc = state.shared_config.clone();
-                if let Err(err) = spawn_http_server(server_manager_arc, shared_config_arc).await {
-                    error!(?err, "failed to spawn MCP HTTP server (continuing without it)");
-                    // 端口被占用最常见。把原因抛到前端显示 toast，避免用户以为没问题。
-                    use tauri::Emitter;
-                    let payload = serde_json::json!({
-                        "port": 3282,
-                        "reason": err.to_string(),
-                    });
-                    if let Err(e) = handle.emit("http-server-failed", payload) {
-                        tracing::warn!(?e, "emit http-server-failed failed");
-                    }
-                }
-
                 state
                     .server_manager
                     .set_event_sink(Box::new(TauriStatusSink::new(handle.clone())));
 
-                // 周期裁剪 request_logs：每 5 分钟读 settings.maxRequestLogRows 一次，
-                // 调 RequestLogRepository::trim_to_max 把最旧的多余行删掉。
-                // 防止 sqlite 文件无限增长。
+                // 4. 立刻 manage，让 #[tauri::command] 可服务。
+                //    此前若前端发起 invoke 会撞 "state not managed" → 显示 "Error loading apps"。
+                handle.manage(state.clone());
+                info!("AppState managed; commands now serviceable");
+
+                // 5. 余下任务全部独立 spawn，互不阻塞 manage。
+
+                // 5a. auto-start 扫描：拉起配置标记的本地 MCP 服务器，
+                //     每台逐个启动可能秒级耗时，必须独立 spawn。
+                {
+                    let registry = state.registry.clone();
+                    let server_manager = state.server_manager.clone();
+                    tauri::async_runtime::spawn(async move {
+                        use crate::persistence::repository::server::{
+                            ServerRepository, SqliteServerRepository,
+                        };
+                        let pool = match registry.get_or_init(DEFAULT_WORKSPACE).await {
+                            Ok(p) => p,
+                            Err(err) => {
+                                tracing::warn!(?err, "auto-start: get pool failed");
+                                return;
+                            }
+                        };
+                        let repo = SqliteServerRepository::new(pool);
+                        let servers = match repo.list().await {
+                            Ok(s) => s,
+                            Err(err) => {
+                                tracing::warn!(?err, "auto-start scan: list servers failed");
+                                return;
+                            }
+                        };
+                        for s in servers {
+                            if s.auto_start && !s.disabled {
+                                if let Err(err) = server_manager.start(&s.id).await {
+                                    tracing::warn!(
+                                        server_id = %s.id,
+                                        server_name = %s.name,
+                                        ?err,
+                                        "auto-start failed"
+                                    );
+                                } else {
+                                    info!(
+                                        server_id = %s.id,
+                                        server_name = %s.name,
+                                        "auto-start ok"
+                                    );
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // 5b. HTTP server 启动（端口占用时只发事件，不阻塞 invoke）。
+                {
+                    let server_manager = state.server_manager.clone();
+                    let shared_config = state.shared_config.clone();
+                    let handle_for_http = handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(err) =
+                            spawn_http_server(server_manager, shared_config).await
+                        {
+                            error!(
+                                ?err,
+                                "failed to spawn MCP HTTP server (continuing without it)"
+                            );
+                            use tauri::Emitter;
+                            let payload = serde_json::json!({
+                                "port": 3282,
+                                "reason": err.to_string(),
+                            });
+                            if let Err(e) =
+                                handle_for_http.emit("http-server-failed", payload)
+                            {
+                                tracing::warn!(?e, "emit http-server-failed failed");
+                            }
+                        }
+                    });
+                }
+
+                // 5c. 周期裁剪 request_logs。
                 {
                     let registry_for_trim = state.registry.clone();
                     let shared_config_for_trim = state.shared_config.clone();
@@ -239,7 +301,7 @@ pub fn run() {
                         let mut interval = tokio::time::interval(
                             std::time::Duration::from_secs(5 * 60),
                         );
-                        // 跳过第一次立即触发（启动时刚扫完 auto_start）
+                        // 跳过第一次立即触发
                         interval.tick().await;
                         loop {
                             interval.tick().await;
@@ -272,8 +334,7 @@ pub fn run() {
                     });
                 }
 
-                handle.manage(state);
-                info!("AppState initialized (registry + shared_config + server_manager seeded; HTTP server on 127.0.0.1:3282)");
+                info!("AppState initialized; background tasks scheduled");
             });
 
             Ok(())
@@ -305,6 +366,9 @@ pub fn run() {
             servers_stop,
             servers_get_status,
             servers_list_tools,
+            autostart_is_enabled,
+            autostart_enable,
+            autostart_disable,
             logs_query,
             logs_trim,
             workflows_list,

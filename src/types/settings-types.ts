@@ -21,10 +21,21 @@ export interface AppSettings {
   autoUpdateEnabled?: boolean;
 
   /**
-   * 系统启动时是否显示主窗口
+   * 开机自启路径下是否显示主窗口（仅在通过 --silent 参数静默拉起时生效）。
+   * 手动启动时永远显示窗口，不受此开关影响。
    * 默认：true
    */
   showWindowOnStartup?: boolean;
+
+  /**
+   * 是否注册到操作系统的开机自启列表（registry / LaunchAgent / autostart desktop）。
+   * 与 showWindowOnStartup 组合：
+   *   - autoStartEnabled=true & showWindowOnStartup=true  → 开机时拉起并显示主窗口
+   *   - autoStartEnabled=true & showWindowOnStartup=false → 开机时静默后台启动（仅托盘）
+   *   - autoStartEnabled=false                            → 不参与开机
+   * 默认：false
+   */
+  autoStartEnabled?: boolean;
 
   /**
    * 应用主题
@@ -62,6 +73,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   packageManagerOverlayDisplayCount: 0,
   autoUpdateEnabled: true,
   showWindowOnStartup: true,
+  autoStartEnabled: false,
   theme: "system",
   lightweightMode: false,
   serverIdleStopMinutes: 0,

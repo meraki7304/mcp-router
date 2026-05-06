@@ -1,3 +1,4 @@
+pub mod autostart;
 pub mod hook_runtime;
 pub mod hooks;
 pub mod logs;

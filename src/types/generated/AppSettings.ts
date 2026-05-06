@@ -4,4 +4,4 @@ import type { Theme } from "./Theme";
 /**
  * Application-level settings. All fields optional with sensible defaults applied at read time.
  */
-export type AppSettings = { userId: string | null, packageManagerOverlayDisplayCount: number | null, autoUpdateEnabled: boolean | null, showWindowOnStartup: boolean | null, theme: Theme | null, lightweightMode: boolean | null, serverIdleStopMinutes: number | null, maxRequestLogRows: bigint | null, };
+export type AppSettings = { userId: string | null, packageManagerOverlayDisplayCount: number | null, autoUpdateEnabled: boolean | null, showWindowOnStartup: boolean | null, autoStartEnabled: boolean | null, theme: Theme | null, lightweightMode: boolean | null, serverIdleStopMinutes: number | null, maxRequestLogRows: bigint | null, };
