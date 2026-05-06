@@ -37,7 +37,6 @@ const Settings: React.FC = () => {
   const [lightweightMode, setLightweightMode] = useState<boolean>(false);
   const [serverIdleStopMinutes, setServerIdleStopMinutes] =
     useState<number>(0);
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [updateUi, setUpdateUi] = useState<UpdateUiState>({ kind: "idle" });
 
   const { theme, setTheme } = useThemeStore();
@@ -77,7 +76,6 @@ const Settings: React.FC = () => {
 
   const handleAutoUpdateToggle = async (checked: boolean) => {
     setAutoUpdateEnabled(checked);
-    setIsSavingSettings(true);
     try {
       const currentSettings = await platformAPI.settings.get();
       await platformAPI.settings.save({
@@ -87,14 +85,11 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error("Failed to save auto update settings:", error);
       setAutoUpdateEnabled(!checked);
-    } finally {
-      setIsSavingSettings(false);
     }
   };
 
   const handleStartupVisibilityToggle = async (checked: boolean) => {
     setShowWindowOnStartup(checked);
-    setIsSavingSettings(true);
     try {
       const currentSettings = await platformAPI.settings.get();
       await platformAPI.settings.save({
@@ -104,38 +99,28 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error("Failed to save startup visibility settings:", error);
       setShowWindowOnStartup(!checked);
-    } finally {
-      setIsSavingSettings(false);
     }
   };
 
   const handleAutoStartToggle = async (checked: boolean) => {
-    // 先乐观更新；失败再回滚（与系统注册项的真实状态保持一致）
+    // 乐观更新：UI 立刻翻转，不等系统 IO；失败再回滚。
+    // 权威状态是插件 is_enabled()（每次进设置页 useEffect 重读），
+    // settings.autoStartEnabled 字段没人读，因此不再写入避免拖慢响应。
     setAutoStartEnabled(checked);
-    setIsSavingSettings(true);
     try {
       if (checked) {
         await platformAPI.settings.enableAutoStart();
       } else {
         await platformAPI.settings.disableAutoStart();
       }
-      // 写一份到 settings 仅作前端显示缓存；权威状态以插件 is_enabled 为准
-      const currentSettings = await platformAPI.settings.get();
-      await platformAPI.settings.save({
-        ...currentSettings,
-        autoStartEnabled: checked,
-      });
     } catch (error) {
       console.error("Failed to toggle autostart:", error);
       setAutoStartEnabled(!checked);
-    } finally {
-      setIsSavingSettings(false);
     }
   };
 
   const handleLightweightModeToggle = async (checked: boolean) => {
     setLightweightMode(checked);
-    setIsSavingSettings(true);
     try {
       const currentSettings = await platformAPI.settings.get();
       await platformAPI.settings.save({
@@ -145,8 +130,6 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error("Failed to save lightweight mode setting:", error);
       setLightweightMode(!checked);
-    } finally {
-      setIsSavingSettings(false);
     }
   };
 
@@ -261,7 +244,6 @@ const Settings: React.FC = () => {
   const handleIdleStopChange = async (value: string) => {
     const minutes = Number.parseInt(value, 10) || 0;
     setServerIdleStopMinutes(minutes);
-    setIsSavingSettings(true);
     try {
       const currentSettings = await platformAPI.settings.get();
       await platformAPI.settings.save({
@@ -270,8 +252,6 @@ const Settings: React.FC = () => {
       });
     } catch (error) {
       console.error("Failed to save server idle stop setting:", error);
-    } finally {
-      setIsSavingSettings(false);
     }
   };
 
@@ -343,7 +323,6 @@ const Settings: React.FC = () => {
             <Switch
               checked={autoUpdateEnabled}
               onCheckedChange={handleAutoUpdateToggle}
-              disabled={isSavingSettings}
             />
           </div>
 
@@ -379,7 +358,6 @@ const Settings: React.FC = () => {
             <Switch
               checked={autoStartEnabled}
               onCheckedChange={handleAutoStartToggle}
-              disabled={isSavingSettings}
             />
           </div>
 
@@ -395,7 +373,7 @@ const Settings: React.FC = () => {
             <Switch
               checked={showWindowOnStartup}
               onCheckedChange={handleStartupVisibilityToggle}
-              disabled={isSavingSettings || !autoStartEnabled}
+              disabled={!autoStartEnabled}
             />
           </div>
 
@@ -410,7 +388,6 @@ const Settings: React.FC = () => {
             <Switch
               checked={lightweightMode}
               onCheckedChange={handleLightweightModeToggle}
-              disabled={isSavingSettings}
             />
           </div>
 
@@ -427,7 +404,6 @@ const Settings: React.FC = () => {
             <Select
               value={String(serverIdleStopMinutes)}
               onValueChange={handleIdleStopChange}
-              disabled={isSavingSettings}
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue />
