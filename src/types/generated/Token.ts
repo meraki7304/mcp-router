@@ -4,4 +4,4 @@
  * MCP client token used for HTTP `Authorization: Bearer ...` against the :3282 server.
  * `issued_at` is unix milliseconds (matches Electron) for wire compatibility with MCP clients.
  */
-export type Token = { id: string, clientId: string, issuedAt: bigint, serverAccess: { [key in string]?: boolean }, };
+export type Token = { id: string, clientId: string, issuedAt: bigint, serverAccess: { [key in string]: boolean }, };
