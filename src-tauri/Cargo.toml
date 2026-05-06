@@ -1,6 +1,6 @@
 [package]
 name = "mcp-router"
-version = "1.0.0"
+version = "1.1.0"
 description = "Effortlessly manage your MCP servers with the MCP Router."
 authors = ["王权 <meraki7304@foxmail.com>"]
 edition = "2021"
